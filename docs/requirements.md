@@ -240,6 +240,25 @@ None of these change an approved decision:
 - "Back to invoices" returns to the list with the search, filter, sort and page it had when the invoice was opened. Opened from a direct link, it leads to the default list.
 - On phones the line items are stacked rather than shown as a four-column table, which did not fit.
 
+## Notes from slice 5 (create invoice)
+
+None of these change an approved decision:
+
+- The specification names the fields of a new invoice but not the shape of the request. `POST /invoices` takes the same nesting as the response: a `customer` object (`fullname`, `email`, optional `mobileNumber` and `address`) and an `items` array of exactly one `{ name, quantity, rate }`, plus `invoiceNumber`, `invoiceDate`, `dueDate`, `currency`, optional `invoiceReference` and `description`, `tax` and `discount`.
+- The request may not carry a status, a total or a currency symbol. Sending one is a 400, not something silently ignored.
+- Numbers must be sent as JSON numbers; `"20"` is rejected.
+- Upper bounds, which the specification leaves open: tax at most 100%, quantity at most 1,000,000, rate at most 999,999,999.99. An invoice whose subtotal plus tax would not fit the `numeric(14,2)` columns is rejected with 400 rather than failing in the database.
+- A discount equal to the subtotal plus tax is allowed and gives a total of 0. A larger one is rejected with `discount must not exceed the subtotal plus tax`. (R1-Q8)
+- Text is trimmed. An optional text field sent blank is stored as `null`. The currency code is accepted in any letter case.
+- The duplicate check is the unique index alone, with no lookup beforehand. A test fires five identical requests at once and expects one 201 and four 409s.
+- The response is read back from the database after the insert, so it is exactly what `GET /invoices/:id` returns for the new invoice.
+- A new invoice whose due date is already past is stored as a Draft and shown as Overdue, like any other. Neither date is restricted to the past or the future.
+- On the form, Tax is pre-filled with 10 and cannot be left empty; the user types 0 for no tax. An empty Discount means 0. The API still defaults both when they are omitted.
+- The form does no arithmetic. A discount that is too large is therefore reported by the backend, in the alert above the form.
+- Amounts are typed into text boxes with a numeric keypad on phones, not number inputs, so "1.999" or "12abc" is refused rather than rounded or truncated by the browser.
+- After saving, the list is opened in its default view, where an invoice dated today is the first row. An invoice dated in the past may be on a later page, so the success message carries a "View" link to it.
+- Cancel and "Back to invoices" return to the list with the search, filter, sort and page it had.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data) and 4 (invoice detail) are built.
+All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data), 4 (invoice detail) and 5 (create invoice) are built. All four core features are in place.

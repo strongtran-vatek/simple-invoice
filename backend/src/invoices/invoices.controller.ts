@@ -1,14 +1,18 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -16,7 +20,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
 import { InvoiceDetailDto } from './dto/invoice-detail.dto.js';
 import { InvoiceListResponseDto } from './dto/invoice-list-response.dto.js';
 import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
@@ -43,6 +50,29 @@ export class InvoicesController {
   })
   list(@Query() query: ListInvoicesQueryDto): Promise<InvoiceListResponseDto> {
     return this.invoices.list(query);
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Create an invoice',
+    description:
+      'The invoice is created as a Draft. The server calculates the subtotal, tax, total and balance.',
+  })
+  @ApiCreatedResponse({ type: InvoiceDetailDto })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description:
+      'A field is invalid, or the discount exceeds the subtotal plus tax',
+  })
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description: 'The invoice number is already in use',
+  })
+  create(
+    @Body() dto: CreateInvoiceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceDetailDto> {
+    return this.invoices.create(dto, user.id);
   }
 
   @Get(':id')

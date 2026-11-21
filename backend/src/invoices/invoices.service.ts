@@ -1,7 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, type SelectQueryBuilder } from 'typeorm';
+import { Decimal } from 'decimal.js';
+import { QueryFailedError, Repository, type SelectQueryBuilder } from 'typeorm';
 import { Clock } from '../common/clock.js';
+import { CURRENCY_SYMBOLS } from '../common/currencies.js';
+import {
+  type CreateInvoiceDto,
+  DEFAULT_TAX_RATE,
+  MAX_AMOUNT,
+} from './dto/create-invoice.dto.js';
 import type { InvoiceDetailDto } from './dto/invoice-detail.dto.js';
 import type { InvoiceListResponseDto } from './dto/invoice-list-response.dto.js';
 import {
@@ -10,6 +22,7 @@ import {
   type ListInvoicesQueryDto,
   SortOrder,
 } from './dto/list-invoices-query.dto.js';
+import { calculateInvoiceAmounts } from './invoice-calculator.js';
 import { InvoiceStatus, StoredInvoiceStatus } from './invoice-status.enum.js';
 import { Invoice } from './invoice.entity.js';
 import { toInvoiceDetail, toInvoiceSummary } from './invoice.mapper.js';
@@ -24,6 +37,22 @@ const SORT_COLUMNS: Record<InvoiceSortField, string> = {
 /** Escapes LIKE wildcards so a search for "50%" matches that text literally. */
 export function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, '\\$&');
+}
+
+/** PostgreSQL's error code for a unique constraint violation. */
+const UNIQUE_VIOLATION = '23505';
+const INVOICE_NUMBER_INDEX = 'uq_invoices_invoice_number_lower';
+
+/** True when an insert failed because the invoice number is already taken. */
+export function isDuplicateInvoiceNumber(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) {
+    return false;
+  }
+  const { code, constraint } = error.driverError as {
+    code?: string;
+    constraint?: string;
+  };
+  return code === UNIQUE_VIOLATION && constraint === INVOICE_NUMBER_INDEX;
 }
 
 @Injectable()
@@ -87,6 +116,89 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
     return toInvoiceDetail(invoice, this.clock.today());
+  }
+
+  /**
+   * Creates a Draft invoice with its single line item and returns it in full.
+   * Every amount is worked out here; the request carries none.
+   */
+  async create(
+    dto: CreateInvoiceDto,
+    createdBy: string,
+  ): Promise<InvoiceDetailDto> {
+    const [item] = dto.items;
+    const taxRate = dto.tax ?? DEFAULT_TAX_RATE;
+    const amounts = calculateInvoiceAmounts({
+      quantity: item.quantity,
+      rate: item.rate,
+      taxRate,
+      discount: dto.discount ?? 0,
+    });
+
+    if (new Decimal(amounts.totalAmount).isNegative()) {
+      throw new BadRequestException(
+        'discount must not exceed the subtotal plus tax',
+      );
+    }
+    // The total is at most subtotal + tax, so this bounds every stored amount.
+    if (
+      new Decimal(amounts.subTotal)
+        .plus(amounts.taxAmount)
+        .greaterThan(MAX_AMOUNT)
+    ) {
+      throw new BadRequestException(
+        'The invoice amount is too large to be recorded',
+      );
+    }
+
+    let invoiceId: string;
+    try {
+      // The invoice and its item are written in one transaction.
+      const saved = await this.invoices.save(
+        this.invoices.create({
+          invoiceNumber: dto.invoiceNumber,
+          invoiceReference: dto.invoiceReference ?? null,
+          invoiceDate: dto.invoiceDate,
+          dueDate: dto.dueDate,
+          currency: dto.currency,
+          currencySymbol: CURRENCY_SYMBOLS[dto.currency],
+          description: dto.description ?? null,
+          status: StoredInvoiceStatus.Draft,
+          taxRate: new Decimal(taxRate).toFixed(2),
+          invoiceSubTotal: amounts.subTotal,
+          totalTax: amounts.taxAmount,
+          totalDiscount: amounts.discount,
+          totalAmount: amounts.totalAmount,
+          totalPaid: amounts.totalPaid,
+          balanceAmount: amounts.balanceAmount,
+          customerFullname: dto.customer.fullname,
+          customerEmail: dto.customer.email,
+          customerMobile: dto.customer.mobileNumber ?? null,
+          customerAddress: dto.customer.address ?? null,
+          createdBy,
+          items: [
+            {
+              name: item.name,
+              quantity: item.quantity,
+              rate: new Decimal(item.rate).toFixed(2),
+            },
+          ],
+        }),
+      );
+      invoiceId = saved.id;
+    } catch (error) {
+      // The unique index is the check, so two simultaneous creates cannot
+      // both pass (docs/adr/0007).
+      if (isDuplicateInvoiceNumber(error)) {
+        throw new ConflictException(
+          'An invoice with this invoice number already exists',
+        );
+      }
+      throw error;
+    }
+
+    // Read back, so the response is exactly what GET /invoices/:id returns.
+    return this.findOne(invoiceId);
   }
 
   /**

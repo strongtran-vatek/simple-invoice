@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import type {
+  CreateInvoiceRequest,
   InvoiceDetail,
   InvoiceStatus,
   InvoiceSummary,
@@ -92,6 +93,83 @@ export function detailOf(summary: InvoiceSummary): InvoiceDetail {
 /** The query string of every `GET /invoices` the app has made in this test. */
 export const invoiceListRequests: URLSearchParams[] = []
 
+/** The body of every `POST /invoices` the app has made in this test. */
+export const invoiceCreateRequests: CreateInvoiceRequest[] = []
+
+/** Invoices created during the current test, on top of `TEST_INVOICES`. */
+const createdInvoices: InvoiceDetail[] = []
+
+const allInvoices = (): InvoiceSummary[] => [
+  ...TEST_INVOICES,
+  ...createdInvoices.map(({ customer, ...invoice }) => ({
+    ...invoice,
+    customer: { fullname: customer.fullname },
+  })),
+]
+
+/** Forgets what a test recorded and created. Run after every test. */
+export function resetFakeBackend(): void {
+  invoiceListRequests.length = 0
+  invoiceCreateRequests.length = 0
+  createdInvoices.length = 0
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  AUD: 'AU$',
+  USD: 'US$',
+  GBP: '£',
+  EUR: '€',
+  SGD: 'S$',
+  VND: '₫',
+}
+
+const cents = (amount: number) => Math.round(amount * 100) / 100
+
+/** Builds the invoice the real backend would store for a create request. */
+function invoiceFrom(body: CreateInvoiceRequest): InvoiceDetail {
+  const [item] = body.items
+  const subTotal = cents(item.quantity * item.rate)
+  const tax = cents((subTotal * body.tax) / 100)
+  const total = cents(subTotal + tax - body.discount)
+  const sequence = String(createdInvoices.length + 1).padStart(2, '0')
+
+  return {
+    invoiceId: `00000000-0000-4000-9000-0000000000${sequence}`,
+    invoiceNumber: body.invoiceNumber,
+    invoiceReference: body.invoiceReference ?? null,
+    invoiceDate: body.invoiceDate,
+    dueDate: body.dueDate,
+    currency: body.currency,
+    currencySymbol: CURRENCY_SYMBOLS[body.currency],
+    description: body.description ?? null,
+    status: 'Draft',
+    taxRate: body.tax,
+    invoiceSubTotal: subTotal,
+    totalTax: tax,
+    totalDiscount: body.discount,
+    totalAmount: total,
+    totalPaid: 0,
+    balanceAmount: total,
+    customer: {
+      fullname: body.customer.fullname,
+      email: body.customer.email,
+      mobileNumber: body.customer.mobileNumber ?? null,
+      address: body.customer.address ?? null,
+    },
+    items: [
+      {
+        id: `10000000-0000-4000-9000-0000000000${sequence}`,
+        name: item.name,
+        quantity: item.quantity,
+        rate: item.rate,
+        amount: subTotal,
+      },
+    ],
+    createdAt: `${body.invoiceDate}T09:00:00.000Z`,
+    createdBy: TEST_USER.id,
+  }
+}
+
 const unauthorized = (message: string) =>
   HttpResponse.json(
     { statusCode: 401, message, error: 'Unauthorized' },
@@ -108,16 +186,18 @@ function listInvoices(query: URLSearchParams) {
   const page = Number(query.get('page') ?? 1)
   const pageSize = Number(query.get('pageSize') ?? 10)
 
-  const matching = TEST_INVOICES.filter(
-    (invoice) =>
-      (!keyword ||
-        invoice.invoiceNumber.toLowerCase().includes(keyword) ||
-        invoice.customer.fullname.toLowerCase().includes(keyword)) &&
-      (!status || invoice.status === status),
-  ).sort((a, b) => {
-    const order = a[sortBy] < b[sortBy] ? -1 : a[sortBy] > b[sortBy] ? 1 : 0
-    return descending ? -order : order
-  })
+  const matching = allInvoices()
+    .filter(
+      (invoice) =>
+        (!keyword ||
+          invoice.invoiceNumber.toLowerCase().includes(keyword) ||
+          invoice.customer.fullname.toLowerCase().includes(keyword)) &&
+        (!status || invoice.status === status),
+    )
+    .sort((a, b) => {
+      const order = a[sortBy] < b[sortBy] ? -1 : a[sortBy] > b[sortBy] ? 1 : 0
+      return descending ? -order : order
+    })
 
   return {
     data: matching.slice((page - 1) * pageSize, page * pageSize),
@@ -127,7 +207,7 @@ function listInvoices(query: URLSearchParams) {
 
 /**
  * A fake backend that behaves like the real one: one known user, one valid
- * token, a fixed set of invoices. Tests override single handlers with `server.use(...)`.
+ * token, a fixed set of invoices plus any the test creates. Tests override single handlers with `server.use(...)`.
  */
 export const server = setupServer(
   http.post(`${API_URL}/auth/login`, async ({ request }) => {
@@ -162,6 +242,34 @@ export const server = setupServer(
     return HttpResponse.json(listInvoices(query))
   }),
 
+  http.post(`${API_URL}/invoices`, async ({ request }) => {
+    if (request.headers.get('Authorization') !== `Bearer ${TEST_TOKEN}`) {
+      return unauthorized('Authentication required')
+    }
+    const body = (await request.json()) as CreateInvoiceRequest
+    invoiceCreateRequests.push(body)
+
+    const taken = allInvoices().some(
+      (invoice) =>
+        invoice.invoiceNumber.toLowerCase() ===
+        body.invoiceNumber.toLowerCase(),
+    )
+    if (taken) {
+      return HttpResponse.json(
+        {
+          statusCode: 409,
+          message: 'An invoice with this invoice number already exists',
+          error: 'Conflict',
+        },
+        { status: 409 },
+      )
+    }
+
+    const invoice = invoiceFrom(body)
+    createdInvoices.push(invoice)
+    return HttpResponse.json(invoice, { status: 201 })
+  }),
+
   http.get(`${API_URL}/invoices/:invoiceId`, ({ request, params }) => {
     if (request.headers.get('Authorization') !== `Bearer ${TEST_TOKEN}`) {
       return unauthorized('Authentication required')
@@ -176,6 +284,12 @@ export const server = setupServer(
         },
         { status: 400 },
       )
+    }
+    const created = createdInvoices.find(
+      (invoice) => invoice.invoiceId === invoiceId,
+    )
+    if (created) {
+      return HttpResponse.json(created)
     }
     const summary = TEST_INVOICES.find(
       (invoice) => invoice.invoiceId === invoiceId,

@@ -2,7 +2,7 @@
 
 A small invoicing application: sign in, list invoices, view one, create one. Built for the 101 Digital Full Stack assessment.
 
-> Work in progress. The project is being built in vertical slices; so far sign-in, route protection, the invoice list (search, status filter, sorting, pagination) and the invoice detail view are in place. Invoice creation follows. This README is completed in a later slice.
+> Work in progress. The project is being built in vertical slices. The four core features are in place: sign-in with route protection, the invoice list (search, status filter, sorting, pagination), the invoice detail view and invoice creation. This README is completed in a later slice.
 
 ## Structure
 

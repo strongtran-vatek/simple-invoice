@@ -1,16 +1,18 @@
 import { useLocation } from 'react-router'
 
-/** Router state carried from the list to a detail page, so "Back" can restore the list. */
+/** Router state carried from the list to another page, so "Back" can restore the list. */
 export interface FromListState {
   /** The list's query string at the moment the invoice was opened, e.g. `?status=Paid`. */
   listSearch: string
 }
 
+export const NEW_INVOICE_PATH = '/invoices/new'
+
 export function invoicePath(invoiceId: string): string {
   return `/invoices/${invoiceId}`
 }
 
-/** The state to attach to links from the list to an invoice. */
+/** The state to attach to links that lead away from the list. */
 export function useFromListState(): FromListState {
   return { listSearch: useLocation().search }
 }

@@ -1,3 +1,4 @@
+import AddIcon from '@mui/icons-material/Add'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -13,6 +14,7 @@ import Typography from '@mui/material/Typography'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import { Link } from 'react-router'
 import { getErrorMessages } from '../api/errors'
 import {
   fetchInvoices,
@@ -22,6 +24,7 @@ import {
   type SortOrder,
 } from '../api/invoices'
 import { InvoiceCards } from '../invoices/InvoiceCards'
+import { NEW_INVOICE_PATH, useFromListState } from '../invoices/invoiceLinks'
 import { InvoiceTable } from '../invoices/InvoiceTable'
 import { PAGE_SIZE_OPTIONS, useInvoiceListParams } from '../invoices/listParams'
 import { SearchField } from '../invoices/SearchField'
@@ -42,6 +45,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 export function InvoiceListPage() {
   const { params, update } = useInvoiceListParams()
   const isPhone = useMediaQuery(useTheme().breakpoints.down('sm'))
+  const fromList = useFromListState()
 
   const { data, error, isPending, isError, isFetching, refetch } = useQuery({
     queryKey: ['invoices', params],
@@ -81,20 +85,32 @@ export function InvoiceListPage() {
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 2,
           mb: 2,
         }}
       >
-        <Typography variant="h4" component="h1">
-          Invoices
-        </Typography>
-        {data && (
-          <Typography color="text.secondary" aria-live="polite">
-            {total === 1 ? '1 invoice' : `${total} invoices`}
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+          <Typography variant="h4" component="h1">
+            Invoices
           </Typography>
-        )}
+          {data && (
+            <Typography color="text.secondary" aria-live="polite">
+              {total === 1 ? '1 invoice' : `${total} invoices`}
+            </Typography>
+          )}
+        </Box>
+        <Button
+          component={Link}
+          to={NEW_INVOICE_PATH}
+          state={fromList}
+          variant="contained"
+          startIcon={<AddIcon />}
+        >
+          New invoice
+        </Button>
       </Box>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>

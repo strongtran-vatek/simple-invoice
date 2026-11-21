@@ -92,3 +92,37 @@ export async function fetchInvoice(invoiceId: string): Promise<InvoiceDetail> {
   )
   return response.data
 }
+
+/**
+ * The body of `POST /invoices`. It carries no status and no totals: the
+ * backend creates a Draft and calculates every amount.
+ */
+export interface CreateInvoiceRequest {
+  invoiceNumber: string
+  invoiceReference?: string
+  /** `YYYY-MM-DD` */
+  invoiceDate: string
+  /** `YYYY-MM-DD`, on or after the invoice date. */
+  dueDate: string
+  currency: string
+  description?: string
+  customer: {
+    fullname: string
+    email: string
+    mobileNumber?: string
+    address?: string
+  }
+  /** Exactly one line item. */
+  items: [{ name: string; quantity: number; rate: number }]
+  /** Tax as a percentage. */
+  tax: number
+  /** An amount, not a percentage. */
+  discount: number
+}
+
+export async function createInvoice(
+  invoice: CreateInvoiceRequest,
+): Promise<InvoiceDetail> {
+  const response = await http.post<InvoiceDetail>('/invoices', invoice)
+  return response.data
+}
