@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module.js';
 import {
   type Environment,
   validateEnvironment,
@@ -29,6 +30,7 @@ import { buildDataSourceOptions } from './database/typeorm.options.js';
         migrationsRun: true,
       }),
     }),
+    AuthModule,
   ],
 })
 export class AppModule {}

@@ -15,5 +15,5 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 3000
-# Pending migrations are applied when the application starts.
-CMD ["node", "dist/main.js"]
+# The seed applies pending migrations and creates the default user, then the API starts.
+CMD ["sh", "-c", "node dist/database/seed/seed.js && exec node dist/main.js"]

@@ -1,16 +1,36 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
 import { inject } from 'vitest';
 import { configureApp } from '../../src/app.setup.js';
+import { BCRYPT_ROUNDS } from '../../src/auth/password.service.js';
+import { seedDefaultUser } from '../../src/database/seed/seed-default-user.js';
+import type { User } from '../../src/users/user.entity.js';
+
+/** The lowest bcrypt cost, so hashing does not dominate test time. */
+export const TEST_BCRYPT_ROUNDS = 4;
+
+export const TEST_USER = {
+  email: 'reviewer@example.com',
+  password: 'correct-horse-battery',
+  fullname: 'Test Reviewer',
+};
 
 export interface TestApp {
   app: INestApplication<App>;
   dataSource: DataSource;
   databaseName: string;
+  /** Creates (or resets) the test user and returns it. */
+  createUser(): Promise<User>;
+}
+
+export interface TestAppOptions {
+  /** Keep the real login rate limit. Off by default so tests can log in freely. */
+  throttling?: boolean;
 }
 
 /**
@@ -18,7 +38,9 @@ export interface TestApp {
  * server. The app applies its own migrations on start, so every e2e file also
  * exercises them.
  */
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  options: TestAppOptions = {},
+): Promise<TestApp> {
   const server = inject('postgres');
   const databaseName = `test_${randomUUID().replaceAll('-', '')}`;
 
@@ -41,13 +63,32 @@ export async function createTestApp(): Promise<TestApp> {
 
   // Imported only now: module options read the environment at import time.
   const { AppModule } = await import('../../src/app.module.js');
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+  const builder = Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(BCRYPT_ROUNDS)
+    .useValue(TEST_BCRYPT_ROUNDS);
+  if (!options.throttling) {
+    builder.overrideGuard(ThrottlerGuard).useValue({ canActivate: () => true });
+  }
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   configureApp(app);
   await app.init();
 
-  return { app, dataSource: app.get(DataSource), databaseName };
+  const dataSource = app.get(DataSource);
+  return {
+    app,
+    dataSource,
+    databaseName,
+    createUser: () =>
+      seedDefaultUser(
+        dataSource,
+        {
+          SEED_USER_EMAIL: TEST_USER.email,
+          SEED_USER_PASSWORD: TEST_USER.password,
+          SEED_USER_FULLNAME: TEST_USER.fullname,
+        },
+        TEST_BCRYPT_ROUNDS,
+      ),
+  };
 }

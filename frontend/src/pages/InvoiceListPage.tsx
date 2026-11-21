@@ -1,16 +1,15 @@
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 
-/** Placeholder landing page. The Invoice List replaces it in a later slice. */
-export function HomePage() {
+/** Home screen after sign-in. The invoice table arrives in the next slice. */
+export function InvoiceListPage() {
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        SimpleInvoice
+        Invoices
       </Typography>
       <Typography color="text.secondary">
-        The application is set up. Sign-in and invoices arrive in the next
-        slices.
+        The invoice list arrives in the next slice.
       </Typography>
     </Container>
   )

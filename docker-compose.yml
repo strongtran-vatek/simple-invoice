@@ -36,6 +36,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3600}
       APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?FRONTEND_ORIGIN is not set. Copy .env.example to .env first}
+      SEED_USER_EMAIL: ${SEED_USER_EMAIL:?SEED_USER_EMAIL is not set. Copy .env.example to .env first}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:?SEED_USER_PASSWORD is not set. Copy .env.example to .env first}
+      SEED_USER_FULLNAME: ${SEED_USER_FULLNAME:?SEED_USER_FULLNAME is not set. Copy .env.example to .env first}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
 

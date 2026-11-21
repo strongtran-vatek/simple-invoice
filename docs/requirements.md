@@ -202,6 +202,19 @@ Other things settled while building, none of which change an approved decision:
 - Beyond the agreed `CHECK` constraints, the schema also enforces that the total equals subtotal plus tax minus discount, that the balance equals total minus paid, and that user emails are stored lower-cased.
 - An e2e test compares the entities with the migrated schema, so a change to an entity without a matching migration fails the build.
 
+## Notes from slice 2 (authentication)
+
+None of these change an approved decision:
+
+- Tokens are signed and verified with `@nestjs/jwt`, passwords are hashed with `bcryptjs` at cost 10, and the guard is our own. NestJS 12 also ships `@nestjs/authentication`, but it hashes with scrypt where the spec names bcrypt, and it is still at version 0.1. Passport is not used; the guard is small enough not to need it.
+- The guard loads the user on every request instead of trusting the token's claims, so a deleted user's token stops working at once.
+- A password is always checked against a hash, a placeholder one when the email is unknown, so response time does not reveal which emails are registered.
+- `POST /auth/login` answers 200, not POST's default 201, and returns `{ accessToken, tokenType, expiresIn }`.
+- Login is limited to 10 attempts per minute per client address. Behind Docker's network every browser shares one address, so the limit is effectively global there; this is listed under README limitations.
+- Emails are trimmed and lower-cased on sign-in, so letter case does not matter.
+- The seed script runs when the backend container starts. It creates the default account, or resets its password and name to the `SEED_USER_*` values, so the documented credentials always work.
+- The frontend's HTTP client uses the browser's `fetch` through axios.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slice 1 (scaffold, Compose, database connection, first migration) is built.
+All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration) and 2 (authentication end to end) are built.
