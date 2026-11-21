@@ -16,6 +16,12 @@ export interface InvoiceFixture {
   taxRate?: string;
   discount?: string;
   totalPaid?: string;
+  itemName?: string;
+  invoiceReference?: string;
+  description?: string;
+  customerEmail?: string;
+  customerMobile?: string;
+  customerAddress?: string;
 }
 
 /** Inserts an invoice directly, with amounts worked out by the real calculator. */
@@ -50,8 +56,12 @@ export async function insertInvoice(
     totalPaid: amounts.totalPaid,
     balanceAmount: amounts.balanceAmount,
     customerFullname: fixture.customerFullname ?? 'Test Customer',
-    customerEmail: 'customer@example.com',
+    customerEmail: fixture.customerEmail ?? 'customer@example.com',
+    customerMobile: fixture.customerMobile ?? null,
+    customerAddress: fixture.customerAddress ?? null,
+    invoiceReference: fixture.invoiceReference ?? null,
+    description: fixture.description ?? null,
     createdBy,
-    items: [{ name: 'Test item', quantity, rate }],
+    items: [{ name: fixture.itemName ?? 'Test item', quantity, rate }],
   });
 }

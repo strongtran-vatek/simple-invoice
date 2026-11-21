@@ -229,6 +229,17 @@ None of these change an approved decision:
 - Unpaid seed invoices are dated within the last 50 days and Paid ones within the last 150, so on any day roughly a quarter of the sample is Overdue and the rest is spread over Draft, Pending and Paid.
 - The Appendix A record names a `createdBy` user that does not exist; the seed records the default account as its creator instead.
 
+## Notes from slice 4 (invoice detail)
+
+None of these change an approved decision:
+
+- `GET /invoices/:id` returns the shape of the Appendix A record, plus `taxRate` (R2-Q14) and an `amount` on each line item. The line amount is quantity × rate worked out by the server, so the frontend does no arithmetic at all.
+- Optional fields that were left empty come back as `null`, not omitted.
+- A malformed id answers 400 with `id must be a valid UUID`; an id that matches no invoice answers 404. The detail screen shows "Invoice not found" for both.
+- The detail screen displays the amounts exactly as the backend sent them. A test feeds it figures that do not add up and checks they are shown unchanged.
+- "Back to invoices" returns to the list with the search, filter, sort and page it had when the invoice was opened. Opened from a direct link, it leads to the default list.
+- On phones the line items are stacked rather than shown as a four-column table, which did not fit.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end) and 3 (invoice list with seed data) are built.
+All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data) and 4 (invoice detail) are built.

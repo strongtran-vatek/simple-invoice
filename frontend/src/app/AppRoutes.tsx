@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { RequireAuth } from '../auth/RequireAuth'
+import { InvoiceDetailPage } from '../pages/InvoiceDetailPage'
 import { InvoiceListPage } from '../pages/InvoiceListPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -16,6 +17,7 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/invoices" replace />} />
           <Route path="/invoices" element={<InvoiceListPage />} />
+          <Route path="/invoices/:invoiceId" element={<InvoiceDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

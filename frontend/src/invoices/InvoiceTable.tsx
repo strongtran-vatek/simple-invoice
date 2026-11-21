@@ -1,3 +1,4 @@
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -6,8 +7,10 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import TableSortLabel from '@mui/material/TableSortLabel'
+import { Link } from 'react-router'
 import type { InvoiceSummary, SortField, SortOrder } from '../api/invoices'
 import { formatDate, formatMoney } from './format'
+import { invoicePath, useFromListState } from './invoiceLinks'
 import { StatusChip } from './StatusChip'
 
 interface InvoiceTableProps {
@@ -25,6 +28,7 @@ export function InvoiceTable({
   onSort,
 }: InvoiceTableProps) {
   const direction = ordering === 'ASC' ? 'asc' : 'desc'
+  const fromList = useFromListState()
 
   const sortableHeader = (field: SortField, label: string, align?: 'right') => (
     <TableCell
@@ -57,8 +61,16 @@ export function InvoiceTable({
         <TableBody>
           {invoices.map((invoice) => (
             <TableRow key={invoice.invoiceId} hover>
-              <TableCell sx={{ fontWeight: 600 }}>
-                {invoice.invoiceNumber}
+              <TableCell>
+                <MuiLink
+                  component={Link}
+                  to={invoicePath(invoice.invoiceId)}
+                  state={fromList}
+                  underline="hover"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {invoice.invoiceNumber}
+                </MuiLink>
               </TableCell>
               <TableCell>{invoice.customer.fullname}</TableCell>
               <TableCell sx={{ whiteSpace: 'nowrap' }}>

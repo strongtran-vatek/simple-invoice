@@ -24,6 +24,39 @@ export interface InvoiceSummary {
   customer: { fullname: string }
 }
 
+export interface InvoiceItem {
+  id: string
+  name: string
+  quantity: number
+  /** Price per unit. */
+  rate: number
+  /** quantity × rate, calculated by the backend. */
+  amount: number
+}
+
+/** A complete invoice. Every field of a list row is here under the same name. */
+export interface InvoiceDetail extends Omit<InvoiceSummary, 'customer'> {
+  invoiceReference: string | null
+  description: string | null
+  /** Tax as a percentage, e.g. 10. */
+  taxRate: number
+  invoiceSubTotal: number
+  totalTax: number
+  /** An amount, not a percentage. */
+  totalDiscount: number
+  totalPaid: number
+  balanceAmount: number
+  customer: {
+    fullname: string
+    email: string
+    mobileNumber: string | null
+    address: string | null
+  }
+  items: InvoiceItem[]
+  createdAt: string
+  createdBy: string
+}
+
 export interface Paging {
   page: number
   pageSize: number
@@ -50,5 +83,12 @@ export async function fetchInvoices(
 ): Promise<InvoiceListResponse> {
   // axios leaves out parameters whose value is undefined.
   const response = await http.get<InvoiceListResponse>('/invoices', { params })
+  return response.data
+}
+
+export async function fetchInvoice(invoiceId: string): Promise<InvoiceDetail> {
+  const response = await http.get<InvoiceDetail>(
+    `/invoices/${encodeURIComponent(invoiceId)}`,
+  )
   return response.data
 }

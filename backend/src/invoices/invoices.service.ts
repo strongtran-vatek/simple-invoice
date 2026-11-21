@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, type SelectQueryBuilder } from 'typeorm';
 import { Clock } from '../common/clock.js';
+import type { InvoiceDetailDto } from './dto/invoice-detail.dto.js';
 import type { InvoiceListResponseDto } from './dto/invoice-list-response.dto.js';
 import {
   DEFAULT_PAGE_SIZE,
@@ -11,7 +12,7 @@ import {
 } from './dto/list-invoices-query.dto.js';
 import { InvoiceStatus, StoredInvoiceStatus } from './invoice-status.enum.js';
 import { Invoice } from './invoice.entity.js';
-import { toInvoiceSummary } from './invoice.mapper.js';
+import { toInvoiceDetail, toInvoiceSummary } from './invoice.mapper.js';
 
 /** The only columns a client may sort by; anything else never reaches SQL. */
 const SORT_COLUMNS: Record<InvoiceSortField, string> = {
@@ -74,6 +75,18 @@ export class InvoicesService {
       data: invoices.map((invoice) => toInvoiceSummary(invoice, today)),
       paging: { page, pageSize, total },
     };
+  }
+
+  /** Returns one invoice with its customer and line items, or throws 404. */
+  async findOne(id: string): Promise<InvoiceDetailDto> {
+    const invoice = await this.invoices.findOne({
+      where: { id },
+      relations: { items: true },
+    });
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+    return toInvoiceDetail(invoice, this.clock.today());
   }
 
   /**

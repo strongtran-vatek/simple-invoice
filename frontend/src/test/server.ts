@@ -1,6 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
-import type { InvoiceStatus, InvoiceSummary } from '../api/invoices'
+import type {
+  InvoiceDetail,
+  InvoiceStatus,
+  InvoiceSummary,
+} from '../api/invoices'
 
 /** Matches VITE_API_URL in vite.config.ts. */
 export const API_URL = 'http://api.test'
@@ -39,6 +43,51 @@ export const TEST_INVOICES: InvoiceSummary[] = Array.from(
     }
   },
 )
+
+/**
+ * The full detail of a test invoice. Invoice n has one line of n units at 100
+ * each, 10% tax and a discount equal to the tax, so its total is 100 × n.
+ * Even-numbered invoices have every optional field; odd-numbered ones have none.
+ */
+export function detailOf(summary: InvoiceSummary): InvoiceDetail {
+  const n = summary.totalAmount / 100
+  const hasOptionalFields = n % 2 === 0
+  const totalPaid =
+    summary.status === 'Paid'
+      ? summary.totalAmount
+      : summary.status === 'Pending'
+        ? summary.totalAmount / 4
+        : 0
+
+  return {
+    ...summary,
+    invoiceReference: hasOptionalFields ? `PO-${n}` : null,
+    description: hasOptionalFields ? `Monthly service, batch ${n}` : null,
+    taxRate: 10,
+    invoiceSubTotal: summary.totalAmount,
+    totalTax: summary.totalAmount / 10,
+    totalDiscount: summary.totalAmount / 10,
+    totalPaid,
+    balanceAmount: summary.totalAmount - totalPaid,
+    customer: {
+      fullname: summary.customer.fullname,
+      email: 'customer@example.com',
+      mobileNumber: hasOptionalFields ? '0412345678' : null,
+      address: hasOptionalFields ? '1 Harbour Street, Sydney' : null,
+    },
+    items: [
+      {
+        id: summary.invoiceId.replace(/^0/, '1'),
+        name: 'Service package',
+        quantity: n,
+        rate: 100,
+        amount: summary.totalAmount,
+      },
+    ],
+    createdAt: `${summary.invoiceDate}T09:00:00.000Z`,
+    createdBy: TEST_USER.id,
+  }
+}
 
 /** The query string of every `GET /invoices` the app has made in this test. */
 export const invoiceListRequests: URLSearchParams[] = []
@@ -111,5 +160,32 @@ export const server = setupServer(
     const query = new URL(request.url).searchParams
     invoiceListRequests.push(query)
     return HttpResponse.json(listInvoices(query))
+  }),
+
+  http.get(`${API_URL}/invoices/:invoiceId`, ({ request, params }) => {
+    if (request.headers.get('Authorization') !== `Bearer ${TEST_TOKEN}`) {
+      return unauthorized('Authentication required')
+    }
+    const invoiceId = String(params.invoiceId)
+    if (!/^[0-9a-f-]{36}$/.test(invoiceId)) {
+      return HttpResponse.json(
+        {
+          statusCode: 400,
+          message: 'id must be a valid UUID',
+          error: 'Bad Request',
+        },
+        { status: 400 },
+      )
+    }
+    const summary = TEST_INVOICES.find(
+      (invoice) => invoice.invoiceId === invoiceId,
+    )
+    if (!summary) {
+      return HttpResponse.json(
+        { statusCode: 404, message: 'Invoice not found', error: 'Not Found' },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json(detailOf(summary))
   }),
 )
