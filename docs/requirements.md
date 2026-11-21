@@ -259,6 +259,16 @@ None of these change an approved decision:
 - After saving, the list is opened in its default view, where an invoice dated today is the first row. An invoice dated in the past may be on a later page, so the success message carries a "View" link to it.
 - Cancel and "Back to invoices" return to the list with the search, filter, sort and page it had.
 
+## Notes from slice 6 (documentation and clean-clone run)
+
+- The OpenAPI document now says how to authorise, describes every response and every parameter, types whole numbers as integers and names the formats of emails and dates. Swagger UI keeps the token across page reloads. `backend/test/api-docs.e2e-spec.ts` checks these properties for every endpoint, so one added later cannot be left half-documented.
+- The README covers everything the specification lists for it: overview and architecture, running with and without Docker, the default login, the seed, assumptions and design decisions, and known limitations. It also documents every exposed port and every configuration key.
+- Both run paths were tried from a fresh `git clone` on 2026-11-21:
+  - With Docker: without `.env`, Compose stops with "Copy .env.example to .env first". With it, `docker compose up` built all three services on an empty volume, applied the migration, seeded the account and 41 invoices, and served the frontend. Signing in, listing, creating an invoice and finding it in the list all worked.
+  - Without Docker: `npm ci`, `npm run seed` and `npm run start:dev` in the backend, and `npm ci` and the Vite dev server in the frontend, against a database started with `docker compose up -d db`. The unit tests of both projects passed in the clone.
+  - The clone's `.env` used other ports than `.env.example`, because 3000, 5433 and 8080 were already in use on the development machine. The default ports themselves were therefore not exercised in that run.
+- The README lists the two Value Add features that are not built yet (date-range filter in the list, live totals on the form), and the missing health endpoint and CI workflow, under known limitations. Each entry is removed when slice 7 delivers it.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data), 4 (invoice detail) and 5 (create invoice) are built. All four core features are in place.
+All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data), 4 (invoice detail), 5 (create invoice) and 6 (documentation and clean-clone run) are built. All four core features are in place; the Value Add items remain.
