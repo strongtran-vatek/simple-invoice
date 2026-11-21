@@ -59,11 +59,13 @@ describe('API documentation (e2e)', () => {
     await testApp.app.close();
   });
 
-  it('documents exactly the endpoints of the specification', () => {
+  it('documents the endpoints of the specification and the two probes', () => {
     expect(operations.map(([name]) => name).sort()).toEqual([
       'GET /auth/me',
+      'GET /health',
       'GET /invoices',
       'GET /invoices/{id}',
+      'GET /ready',
       'POST /auth/login',
       'POST /invoices',
     ]);
@@ -109,7 +111,10 @@ describe('API documentation (e2e)', () => {
       const errors = Object.entries(operation.responses).filter(
         ([status]) => Number(status) >= 400,
       );
-      expect(errors.length, name).toBeGreaterThan(0);
+      // Liveness checks nothing, so it has no way to fail.
+      if (name !== 'GET /health') {
+        expect(errors.length, name).toBeGreaterThan(0);
+      }
       for (const [status, response] of errors) {
         expect(
           response.content?.['application/json']?.schema?.$ref,
@@ -119,9 +124,11 @@ describe('API documentation (e2e)', () => {
     }
   });
 
-  it('marks every endpoint except login as needing the bearer token', () => {
+  it('marks every endpoint except login and the probes as needing the bearer token', () => {
+    const open = ['POST /auth/login', 'GET /health', 'GET /ready'];
+
     for (const [name, operation] of operations) {
-      if (name === 'POST /auth/login') {
+      if (open.includes(name)) {
         expect(operation.security, name).toBeUndefined();
       } else {
         expect(operation.security, name).toEqual([{ bearer: [] }]);

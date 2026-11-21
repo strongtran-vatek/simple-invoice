@@ -13,7 +13,7 @@ REST API of SimpleInvoice: sign in, list invoices, view one, create one.
 
 **Trying it out.** Call \`POST /auth/login\` with the default account from the
 README, copy \`accessToken\` from the response, press **Authorize** and paste it.
-Every endpoint except login needs the token.
+Every endpoint except login and the two health probes needs the token.
 
 **Conventions**
 
@@ -62,6 +62,7 @@ export function configureApp(app: INestApplication): void {
       .setVersion('1.0')
       .addTag('auth', 'Signing in and identifying the signed-in user')
       .addTag('invoices', 'Listing, viewing and creating invoices')
+      .addTag('health', 'Probes for Docker and other orchestrators')
       .addBearerAuth({
         type: 'http',
         scheme: 'bearer',

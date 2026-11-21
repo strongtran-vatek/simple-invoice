@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose up
 ```
 
-That builds and starts the database, the backend and the frontend. On start the backend applies the database migrations and runs the seed, so you can sign in straight away.
+That builds and starts the database, the backend and the frontend, each once the one before it reports healthy. On start the backend applies the database migrations and runs the seed, so you can sign in straight away.
 
 | Service | URL | Host port | `.env` key |
 | --- | --- | --- | --- |
@@ -74,6 +74,7 @@ simple-invoice/
 │   │   ├── users/          The user entity and lookups
 │   │   ├── invoices/       Entities, DTOs, calculator, status rule, service, controller
 │   │   ├── database/       Data source, migrations, seed/
+│   │   ├── health/         Liveness and readiness probes
 │   │   ├── common/         Error filter, clock, currencies, validators
 │   │   └── config/         Environment validation
 │   ├── test/               End-to-end tests
@@ -220,8 +221,10 @@ Interactive documentation is at http://localhost:3000/api/docs, and the OpenAPI 
 | `GET` | `/invoices` | List invoices: `page`, `pageSize`, `sortBy`, `ordering`, `status`, `keyword`, `fromDate`, `toDate` |
 | `GET` | `/invoices/:id` | One invoice with its customer and line item |
 | `POST` | `/invoices` | Create an invoice |
+| `GET` | `/health` | Liveness probe: the process is running |
+| `GET` | `/ready` | Readiness probe: the database answers; 503 when it does not |
 
-Every endpoint except login requires `Authorization: Bearer <token>`.
+Every endpoint except login and the two probes requires `Authorization: Bearer <token>`. The probes are an addition to the specification's endpoint list.
 
 A list response is `{ data: [...], paging: { page, pageSize, total } }`. An error is always `{ statusCode, message, error }`; `message` is a list when several fields are invalid.
 
@@ -242,7 +245,7 @@ cd frontend && npm test
 | Suite | Runs against | Covers |
 | --- | --- | --- |
 | Backend unit | Plain functions and classes | Status derivation, the amount calculator, request validation, password hashing, the JWT guard, the error filter, environment validation, seed data |
-| Backend e2e | The real application and a real PostgreSQL, started by Testcontainers | Every endpoint: success, validation, authentication and error cases; the migration; the seed; the OpenAPI document |
+| Backend e2e | The real application and a real PostgreSQL, started by Testcontainers | Every endpoint: success, validation, authentication and error cases; the migration; the seed; the health probes; the OpenAPI document |
 | Frontend | The whole app in jsdom, with a fake backend (MSW) | Sign-in and route protection, the list with search, filter, sort and paging, the detail view, the create form |
 
 The e2e suite needs Docker running. Each test file gets a fresh database.
@@ -322,6 +325,5 @@ Where the specification is silent or contradicts itself, these are the choices m
 - The frontend ships as a single JavaScript bundle of about 700 kB; it is not split by route.
 - `VITE_API_URL` is fixed when the frontend is built. Pointing the Docker frontend at another API means rebuilding it.
 - The Compose setup is for local use: plain HTTP, and the seed runs on every backend start.
-- The backend has no health endpoint, and Compose waits for the database but not for the API.
 - There is no CI workflow in the repository yet.
 - The frontend tests use a fake backend. No test drives a real browser against the running stack; that path was checked by hand.

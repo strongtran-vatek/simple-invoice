@@ -7,6 +7,7 @@ import {
   validateEnvironment,
 } from './config/env.validation.js';
 import { buildDataSourceOptions } from './database/typeorm.options.js';
+import { HealthModule } from './health/health.module.js';
 import { InvoicesModule } from './invoices/invoices.module.js';
 
 @Module({
@@ -33,6 +34,7 @@ import { InvoicesModule } from './invoices/invoices.module.js';
     }),
     AuthModule,
     InvoicesModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

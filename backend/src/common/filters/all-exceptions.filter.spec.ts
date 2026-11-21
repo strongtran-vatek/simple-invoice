@@ -2,6 +2,7 @@ import {
   BadRequestException,
   HttpException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { toErrorBody } from './all-exceptions.filter.js';
 
@@ -31,6 +32,19 @@ describe('toErrorBody', () => {
       statusCode: 429,
       message: 'Slow down',
       error: 'Too Many Requests',
+    });
+  });
+
+  it('names the error from the status when a library put an object there', () => {
+    const exception = new ServiceUnavailableException({
+      status: 'error',
+      error: { database: { status: 'down' } },
+    });
+
+    expect(toErrorBody(exception)).toEqual({
+      statusCode: 503,
+      message: 'Service Unavailable Exception',
+      error: 'Service Unavailable',
     });
   });
 

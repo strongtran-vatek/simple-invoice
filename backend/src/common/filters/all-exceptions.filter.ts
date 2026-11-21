@@ -39,7 +39,11 @@ export function toErrorBody(exception: unknown): ErrorBody {
   return {
     statusCode,
     message: details.message ?? exception.message,
-    error: details.error ?? STATUS_CODES[statusCode] ?? 'Error',
+    // Some libraries put an object here; `error` is always the status name.
+    error:
+      typeof details.error === 'string'
+        ? details.error
+        : (STATUS_CODES[statusCode] ?? 'Error'),
   };
 }
 
@@ -50,10 +54,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const body = toErrorBody(exception);
 
-    if (body.statusCode >= 500) {
+    if (!(exception instanceof HttpException)) {
+      // Unexpected: the stack is the only record of what went wrong.
       this.logger.error(
         exception instanceof Error ? exception.stack : String(exception),
       );
+    } else if (body.statusCode >= 500) {
+      // Raised on purpose, e.g. a failed readiness probe: one line is enough.
+      this.logger.warn(`${body.statusCode} ${String(body.message)}`);
     }
 
     host
