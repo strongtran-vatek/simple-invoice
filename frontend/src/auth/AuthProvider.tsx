@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     tokenStorage.clear()
     queryClient.clear()
-    setState({ status: 'signedOut' })
+    setState({ status: 'signedOut', loggedOut: true })
   }, [queryClient])
 
   const value = useMemo(

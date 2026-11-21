@@ -26,10 +26,32 @@ export enum SortOrder {
 
 export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 100;
+/**
+ * Far beyond any real page. It keeps the row offset (page × pageSize) a
+ * number the database accepts, so an absurd page is a 400 and not a 500.
+ */
+export const MAX_PAGE = 1_000_000;
 
 /** `?status=` with no value means "no filter", not an invalid status. */
 const blankToUndefined = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
+
+/**
+ * The same for numeric parameters. `@Type` has already turned `page=` into 0
+ * by the time this runs, so it looks at the text that was actually sent.
+ */
+const blankNumberToUndefined = ({
+  value,
+  obj,
+  key,
+}: {
+  value: unknown;
+  obj: Record<string, unknown>;
+  key: string;
+}) => {
+  const sent = obj[key];
+  return typeof sent === 'string' && sent.trim() === '' ? undefined : value;
+};
 
 const trimmed = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || undefined : value;
@@ -43,12 +65,15 @@ export class ListInvoicesQueryDto {
     type: 'integer',
     minimum: 1,
     default: 1,
+    maximum: MAX_PAGE,
     description: 'Page number, starting at 1',
   })
   @IsOptional()
   @Type(() => Number)
+  @Transform(blankNumberToUndefined)
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE)
   page?: number;
 
   @ApiPropertyOptional({
@@ -60,6 +85,7 @@ export class ListInvoicesQueryDto {
   })
   @IsOptional()
   @Type(() => Number)
+  @Transform(blankNumberToUndefined)
   @IsInt()
   @Min(1)
   @Max(MAX_PAGE_SIZE)

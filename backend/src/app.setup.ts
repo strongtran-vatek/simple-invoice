@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+import { RejectNullCharactersPipe } from './common/pipes/reject-null-characters.pipe.js';
 import type { Environment } from './config/env.validation.js';
 
 /** Where Swagger UI is served. API endpoints themselves have no prefix (docs/adr/0005). */
@@ -43,6 +44,8 @@ export function configureApp(app: INestApplication): void {
       .filter(Boolean),
   });
   app.useGlobalPipes(
+    // First, so text the database cannot hold is a 400 and never a 500.
+    new RejectNullCharactersPipe(),
     new ValidationPipe({
       // Strip unknown properties, and reject requests that send them.
       whitelist: true,

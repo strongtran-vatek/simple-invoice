@@ -13,7 +13,8 @@ export interface LoginRedirectState {
  * the Login screen, which returns them to the page they asked for.
  */
 export function RequireAuth() {
-  const { status } = useAuth()
+  const auth = useAuth()
+  const { status } = auth
   const location = useLocation()
 
   if (status === 'loading') {
@@ -24,10 +25,13 @@ export function RequireAuth() {
     )
   }
 
-  if (status === 'signedOut') {
-    const state: LoginRedirectState = {
-      from: location.pathname + location.search,
-    }
+  if (auth.status === 'signedOut') {
+    // Someone who followed a link, or whose session expired, is returned to
+    // this page after signing in. Someone who logged out on purpose is not:
+    // their next sign-in opens the Invoice List, the home screen.
+    const state: LoginRedirectState | undefined = auth.loggedOut
+      ? undefined
+      : { from: location.pathname + location.search }
     return <Navigate to="/login" replace state={state} />
   }
 

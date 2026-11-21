@@ -457,6 +457,29 @@ describe('POST /invoices (e2e)', () => {
       expect(response.body.totalAmount).toBe(999_999_999_999);
     });
 
+    it('rejects a null character in any text field with 400, not a server error', async () => {
+      const before = await countInvoices();
+
+      const response = await create(
+        validBody({
+          invoiceNumber: 'NUL-\u0000-1',
+          customer: { fullname: 'Pa\u0000ul', email: 'paul@101digital.io' },
+          items: [{ name: 'Wid\u0000get', quantity: 1, rate: 10 }],
+        }),
+      ).expect(400);
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        message: [
+          'invoiceNumber must not contain a null character',
+          'customer.fullname must not contain a null character',
+          'items.0.name must not contain a null character',
+        ],
+        error: 'Bad Request',
+      });
+      expect(await countInvoices()).toBe(before);
+    });
+
     it('rejects an empty body, naming every missing field', async () => {
       const response = await create({}).expect(400);
 

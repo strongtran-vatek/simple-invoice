@@ -291,6 +291,7 @@ Where the specification is silent or contradicts itself, these are the choices m
 - The invoice stores its tax rate, so the detail view can show "Tax (10%)". This is an addition to the reference data model.
 - Currency is one of AUD, USD, GBP, EUR, SGD or VND. The backend derives the symbol.
 - Upper bounds the specification leaves open: tax at most 100%, quantity at most 1,000,000, rate at most 999,999,999.99.
+- Rate, tax and discount take at most two decimal places. Text is capped at 50 characters for invoice number, reference and mobile, 255 for names and email, and 500 for address and description. The list returns at most 100 invoices per page.
 
 **Invoices**
 

@@ -390,6 +390,8 @@ describe('GET /invoices (e2e)', () => {
 
   it('treats blank parameters as absent', async () => {
     const response = await list({
+      page: '',
+      pageSize: ' ',
       status: '',
       keyword: '',
       sortBy: '',
@@ -398,7 +400,7 @@ describe('GET /invoices (e2e)', () => {
       toDate: '',
     }).expect(200);
 
-    expect(response.body.paging.total).toBe(7);
+    expect(response.body.paging).toEqual({ page: 1, pageSize: 10, total: 7 });
   });
 
   describe('validation', () => {
@@ -408,6 +410,12 @@ describe('GET /invoices (e2e)', () => {
       [{ page: 'two' }, 'page must be an integer number'],
       [{ pageSize: 0 }, 'pageSize must not be less than 1'],
       [{ pageSize: 101 }, 'pageSize must not be greater than 100'],
+      [{ page: 1000001 }, 'page must not be greater than 1000000'],
+      [
+        { page: '99999999999999999999' },
+        'page must not be greater than 1000000',
+      ],
+      [{ keyword: 'a\u0000b' }, 'keyword must not contain a null character'],
       [
         { sortBy: 'createdAt' },
         'sortBy must be one of: invoiceDate, dueDate, totalAmount',

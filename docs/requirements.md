@@ -301,6 +301,20 @@ CI workflow:
 - The Docker Compose job was rehearsed by hand on 2026-11-21: a fresh clone of the final slice 7 code, `.env` from the example with only the ports changed, `docker compose up --build --detach --wait` on an empty volume, then the smoke test. All three services reported healthy and the smoke test passed.
 - The smoke test script passes against the local stack. The workflow itself has not run on GitHub, because the repository has no remote yet; its YAML parses and every command in it was run locally.
 
+## Verification against the specification (2026-11-21)
+
+After slice 7 the finished application was checked against the specification itself, section by section: every test suite, a scripted walk through the live API (109 checks), the database inspected directly in PostgreSQL, the four features exercised in a browser at desktop and phone width, and an independent read-only audit of the code. No requirement was found unmet. Three defects outside the specification's wording were found and fixed:
+
+- **Sign-in after logging out.** Logging out on a page other than the Invoice List, then signing in again, reopened that page. The session now records that the user chose to log out, and the next sign-in opens the Invoice List, the home screen. A visitor who followed a link, or whose session expired, is still returned to the page they were on.
+- **Two inputs answered 500.** A null character (U+0000) in the search box or in any text field reached PostgreSQL, which cannot store it. A global pipe now refuses it with 400 and names the field. A page number too large for the database is now refused with 400 as well; `page` is capped at 1,000,000.
+- **Blank `page=` and `pageSize=`** answered 400, although blank parameters are meant to be treated as absent. They now fall back to their defaults like the other six.
+
+Known and left as they are, because each is a choice rather than a fault:
+
+- Unique invoice numbers are tested end to end against a real database, where the rule lives, and have no separate unit test.
+- Validation is stricter than the specification's table in four places: tax above 100%, more than two decimal places, currencies outside the six supported, and a discount larger than the subtotal plus tax.
+- The request examples in Swagger use the dates of the Appendix A record (June and July 2026). An invoice created from them is stored as a Draft and reported as Overdue, because its due date has passed.
+
 ## Status
 
-All three grilling rounds are answered and recorded. All seven slices are built: scaffold, authentication, invoice list, invoice detail, create invoice, documentation with a clean-clone run, and the four Value Add items. Nothing approved remains unbuilt.
+All three grilling rounds are answered and recorded. All seven slices are built and the result has been verified against the specification. Nothing approved remains unbuilt.

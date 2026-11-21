@@ -1,10 +1,11 @@
 import { screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { tokenStorage } from '../auth/tokenStorage'
-import { renderApp } from '../test/renderApp'
+import { currentUrl, renderApp } from '../test/renderApp'
 import {
   API_URL,
   server,
+  TEST_INVOICES,
   TEST_PASSWORD,
   TEST_TOKEN,
   TEST_USER,
@@ -115,6 +116,48 @@ describe('signing out', () => {
 
     expect(await loginHeading()).toBeInTheDocument()
     expect(tokenStorage.get()).toBeNull()
+  })
+
+  it('opens the Invoice List, not the page that was left, on the next sign-in', async () => {
+    tokenStorage.set(TEST_TOKEN)
+    const { user } = renderApp(`/invoices/${TEST_INVOICES[0].invoiceId}`)
+    await screen.findByRole('heading', { name: 'Invoice INV-0001' })
+
+    await user.click(screen.getByRole('button', { name: 'Log out' }))
+    await loginHeading()
+    await signIn(user)
+
+    expect(await invoicesHeading()).toBeInTheDocument()
+    expect(currentUrl()).toBe('/invoices')
+  })
+
+  it('still returns to the page in use when the session expired by itself', async () => {
+    tokenStorage.set(TEST_TOKEN)
+    const invoice = TEST_INVOICES[0]
+    // The token is accepted on load, then rejected when the invoice is fetched.
+    server.use(
+      http.get(
+        `${API_URL}/invoices/:invoiceId`,
+        () =>
+          HttpResponse.json(
+            {
+              statusCode: 401,
+              message: 'Invalid or expired token',
+              error: 'Unauthorized',
+            },
+            { status: 401 },
+          ),
+        { once: true },
+      ),
+    )
+    const { user } = renderApp(`/invoices/${invoice.invoiceId}`)
+
+    await loginHeading()
+    await signIn(user)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Invoice INV-0001' }),
+    ).toBeInTheDocument()
   })
 
   it('redirects a signed-in user away from the Login screen', async () => {
