@@ -36,8 +36,15 @@ export class AuthController {
   @Post('login')
   // Signing in creates nothing, so it answers 200 rather than POST's default 201.
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate with email and password' })
-  @ApiOkResponse({ type: LoginResponseDto })
+  @ApiOperation({
+    summary: 'Authenticate with email and password',
+    description:
+      'Returns a JWT access token. Limited to 10 attempts a minute from one address.',
+  })
+  @ApiOkResponse({
+    type: LoginResponseDto,
+    description: 'The credentials are correct',
+  })
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
     description: 'The email or password is missing or malformed',
@@ -56,8 +63,14 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Return the signed-in user' })
-  @ApiOkResponse({ type: UserProfileDto })
+  @ApiOperation({
+    summary: 'Return the signed-in user',
+    description: 'Identifies the owner of the token. Also a way to check it.',
+  })
+  @ApiOkResponse({
+    type: UserProfileDto,
+    description: 'The user the token belongs to',
+  })
   @ApiUnauthorizedResponse({
     type: ErrorResponseDto,
     description: 'The token is missing, invalid or expired',

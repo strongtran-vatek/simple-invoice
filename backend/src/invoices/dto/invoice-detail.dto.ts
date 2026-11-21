@@ -5,7 +5,7 @@ export class InvoiceCustomerDto {
   @ApiProperty({ example: 'Paul' })
   fullname: string;
 
-  @ApiProperty({ example: 'paul@101digital.io' })
+  @ApiProperty({ format: 'email', example: 'paul@101digital.io' })
   email: string;
 
   @ApiProperty({ type: String, nullable: true, example: '947717364111' })
@@ -22,7 +22,7 @@ export class InvoiceItemDto {
   @ApiProperty({ example: 'Honda RC150' })
   name: string;
 
-  @ApiProperty({ example: 2 })
+  @ApiProperty({ type: 'integer', example: 2 })
   quantity: number;
 
   @ApiProperty({ example: 1000, description: 'Price per unit' })
@@ -64,7 +64,10 @@ export class InvoiceDetailDto extends OmitType(InvoiceSummaryDto, [
   @ApiProperty({ example: 20, description: 'An amount, not a percentage' })
   totalDiscount: number;
 
-  @ApiProperty({ example: 1451.34 })
+  @ApiProperty({
+    example: 1451.34,
+    description: 'Payments received so far; 0 for a new invoice',
+  })
   totalPaid: number;
 
   @ApiProperty({ example: 728.66, description: 'totalAmount − totalPaid' })
@@ -76,7 +79,7 @@ export class InvoiceDetailDto extends OmitType(InvoiceSummaryDto, [
   @ApiProperty({ type: [InvoiceItemDto] })
   items: InvoiceItemDto[];
 
-  @ApiProperty({ format: 'date-time' })
+  @ApiProperty({ format: 'date-time', example: '2026-06-03T12:03:26.995Z' })
   createdAt: string;
 
   @ApiProperty({ format: 'uuid', description: 'Id of the creating user' })

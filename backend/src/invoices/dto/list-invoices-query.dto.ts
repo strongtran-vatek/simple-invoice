@@ -39,7 +39,12 @@ const upperCased = ({ value }: { value: unknown }) =>
 
 /** Query parameters of `GET /invoices`. Every one is optional. */
 export class ListInvoicesQueryDto {
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    default: 1,
+    description: 'Page number, starting at 1',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -47,9 +52,11 @@ export class ListInvoicesQueryDto {
   page?: number;
 
   @ApiPropertyOptional({
+    type: 'integer',
     minimum: 1,
     maximum: MAX_PAGE_SIZE,
     default: DEFAULT_PAGE_SIZE,
+    description: 'Invoices per page',
   })
   @IsOptional()
   @Type(() => Number)
@@ -61,6 +68,7 @@ export class ListInvoicesQueryDto {
   @ApiPropertyOptional({
     enum: InvoiceSortField,
     default: InvoiceSortField.InvoiceDate,
+    description: 'The field to sort by',
   })
   @IsOptional()
   @Transform(blankToUndefined)
@@ -69,7 +77,11 @@ export class ListInvoicesQueryDto {
   })
   sortBy?: InvoiceSortField;
 
-  @ApiPropertyOptional({ enum: SortOrder, default: SortOrder.Desc })
+  @ApiPropertyOptional({
+    enum: SortOrder,
+    default: SortOrder.Desc,
+    description: 'Ascending or descending; letter case is ignored',
+  })
   @IsOptional()
   @Transform(upperCased)
   @IsEnum(SortOrder, { message: 'ordering must be ASC or DESC' })
@@ -111,7 +123,8 @@ export class ListInvoicesQueryDto {
   @ApiPropertyOptional({
     format: 'date',
     example: '2026-06-30',
-    description: 'Only invoices dated on or before this date',
+    description:
+      'Only invoices dated on or before this date. Must not be before fromDate.',
   })
   @IsOptional()
   @Transform(blankToUndefined)

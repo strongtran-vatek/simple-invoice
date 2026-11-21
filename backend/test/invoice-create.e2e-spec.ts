@@ -310,7 +310,9 @@ describe('POST /invoices (e2e)', () => {
         ),
       );
 
-      const statuses = responses.map((response) => response.status).sort();
+      const statuses = responses
+        .map((response) => response.status)
+        .sort((a, b) => a - b);
       expect(statuses).toEqual([201, 409, 409, 409, 409]);
     });
 

@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 /** Documents the error shape produced by AllExceptionsFilter. */
 export class ErrorResponseDto {
-  @ApiProperty({ example: 400 })
+  @ApiProperty({ type: 'integer', example: 400 })
   statusCode: number;
 
   @ApiProperty({
@@ -12,6 +12,9 @@ export class ErrorResponseDto {
   })
   message: string | string[];
 
-  @ApiProperty({ example: 'Bad Request' })
+  @ApiProperty({
+    example: 'Bad Request',
+    description: 'The name of the HTTP status',
+  })
   error: string;
 }

@@ -8,6 +8,24 @@ import type { Environment } from './config/env.validation.js';
 /** Where Swagger UI is served. API endpoints themselves have no prefix (docs/adr/0005). */
 export const SWAGGER_PATH = 'api/docs';
 
+const API_DESCRIPTION = `
+REST API of SimpleInvoice: sign in, list invoices, view one, create one.
+
+**Trying it out.** Call \`POST /auth/login\` with the default account from the
+README, copy \`accessToken\` from the response, press **Authorize** and paste it.
+Every endpoint except login needs the token.
+
+**Conventions**
+
+- Dates are calendar dates written \`YYYY-MM-DD\`, with no time or timezone.
+- Amounts are JSON numbers with at most two decimal places. The server
+  calculates every total; a request never carries one.
+- \`status\` is the effective status. \`Overdue\` is never stored: an invoice
+  that is not \`Paid\` and whose due date has passed is reported as \`Overdue\`.
+- Every error has the same shape: \`{ "statusCode", "message", "error" }\`.
+  \`message\` is a list when several fields are invalid.
+`.trim();
+
 /**
  * Applies the cross-cutting HTTP behaviour: security headers, CORS, input
  * validation, the error shape and API docs. Shared by `main.ts` and the e2e
@@ -40,10 +58,21 @@ export function configureApp(app: INestApplication): void {
     app,
     new DocumentBuilder()
       .setTitle('SimpleInvoice API')
-      .setDescription('Authentication and invoice endpoints for SimpleInvoice.')
+      .setDescription(API_DESCRIPTION)
       .setVersion('1.0')
-      .addBearerAuth()
+      .addTag('auth', 'Signing in and identifying the signed-in user')
+      .addTag('invoices', 'Listing, viewing and creating invoices')
+      .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'The `accessToken` returned by `POST /auth/login`',
+      })
       .build(),
   );
-  SwaggerModule.setup(SWAGGER_PATH, app, document);
+  SwaggerModule.setup(SWAGGER_PATH, app, document, {
+    customSiteTitle: 'SimpleInvoice API',
+    // Keep the token across page reloads, so it is pasted only once.
+    swaggerOptions: { persistAuthorization: true },
+  });
 }

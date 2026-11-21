@@ -42,8 +42,13 @@ export class InvoicesController {
   @Get()
   @ApiOperation({
     summary: 'List invoices with search, filter, sort and pagination',
+    description:
+      'Every parameter is optional and they combine. Paging is done by the server: `paging.total` counts the invoices that match, across all pages. A page past the last one is an empty list, not an error.',
   })
-  @ApiOkResponse({ type: InvoiceListResponseDto })
+  @ApiOkResponse({
+    type: InvoiceListResponseDto,
+    description: 'One page of matching invoices',
+  })
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
     description: 'A query parameter is invalid',
@@ -58,7 +63,10 @@ export class InvoicesController {
     description:
       'The invoice is created as a Draft. The server calculates the subtotal, tax, total and balance.',
   })
-  @ApiCreatedResponse({ type: InvoiceDetailDto })
+  @ApiCreatedResponse({
+    type: InvoiceDetailDto,
+    description: 'The invoice as stored, with its calculated amounts',
+  })
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
     description:
@@ -77,8 +85,12 @@ export class InvoicesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get one invoice with its customer and line items' })
-  @ApiParam({ name: 'id', format: 'uuid', description: 'The invoice id' })
-  @ApiOkResponse({ type: InvoiceDetailDto })
+  @ApiParam({
+    name: 'id',
+    format: 'uuid',
+    description: 'The invoice id (`invoiceId` in the list)',
+  })
+  @ApiOkResponse({ type: InvoiceDetailDto, description: 'The invoice' })
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
     description: 'The id is not a UUID',

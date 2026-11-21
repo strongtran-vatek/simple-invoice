@@ -3,12 +3,18 @@ import { ApiProperty } from '@nestjs/swagger';
 export class LoginResponseDto {
   @ApiProperty({
     description: 'JWT to send as `Authorization: Bearer <token>`',
+    example:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIuLi4ifQ.signature',
   })
   accessToken: string;
 
-  @ApiProperty({ example: 'Bearer' })
+  @ApiProperty({ enum: ['Bearer'], example: 'Bearer' })
   tokenType: 'Bearer';
 
-  @ApiProperty({ description: 'Token lifetime in seconds', example: 3600 })
+  @ApiProperty({
+    type: 'integer',
+    description: 'Token lifetime in seconds',
+    example: 3600,
+  })
   expiresIn: number;
 }

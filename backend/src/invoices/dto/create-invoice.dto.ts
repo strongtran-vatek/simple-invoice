@@ -54,7 +54,11 @@ export class CreateInvoiceCustomerDto {
   @MaxLength(255)
   fullname: string;
 
-  @ApiProperty({ example: 'paul@101digital.io', maxLength: 255 })
+  @ApiProperty({
+    format: 'email',
+    example: 'paul@101digital.io',
+    maxLength: 255,
+  })
   @Transform(trimmed)
   @IsEmail({}, { message: 'email must be a valid email address' })
   @MaxLength(255)
@@ -83,7 +87,12 @@ export class CreateInvoiceItemDto {
   @MaxLength(255)
   name: string;
 
-  @ApiProperty({ example: 2, minimum: 1, maximum: MAX_QUANTITY })
+  @ApiProperty({
+    type: 'integer',
+    example: 2,
+    minimum: 1,
+    maximum: MAX_QUANTITY,
+  })
   @IsInt({ message: 'quantity must be a whole number' })
   @Min(1)
   @Max(MAX_QUANTITY)
@@ -91,6 +100,7 @@ export class CreateInvoiceItemDto {
 
   @ApiProperty({
     example: 1000,
+    minimum: 0.01,
     maximum: MAX_RATE,
     description: 'Price per unit; greater than 0, at most 2 decimal places',
   })
