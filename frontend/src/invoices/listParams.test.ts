@@ -1,5 +1,6 @@
 import {
   DEFAULT_LIST_PARAMS,
+  isDateRangeInverted,
   parseListParams,
   toSearchParams,
 } from './listParams'
@@ -15,13 +16,15 @@ describe('parseListParams', () => {
       ordering: 'DESC',
       status: undefined,
       keyword: undefined,
+      fromDate: undefined,
+      toDate: undefined,
     })
   })
 
   it('reads every parameter', () => {
     expect(
       parse(
-        'page=3&pageSize=25&sortBy=totalAmount&ordering=ASC&status=Overdue&keyword=paul',
+        'page=3&pageSize=25&sortBy=totalAmount&ordering=ASC&status=Overdue&keyword=paul&fromDate=2026-06-01&toDate=2026-06-30',
       ),
     ).toEqual({
       page: 3,
@@ -30,6 +33,8 @@ describe('parseListParams', () => {
       ordering: 'ASC',
       status: 'Overdue',
       keyword: 'paul',
+      fromDate: '2026-06-01',
+      toDate: '2026-06-30',
     })
   })
 
@@ -44,6 +49,9 @@ describe('parseListParams', () => {
     ['ordering=sideways', { ordering: 'DESC' }],
     ['status=Late', { status: undefined }],
     ['keyword=%20%20', { keyword: undefined }],
+    ['fromDate=yesterday', { fromDate: undefined }],
+    ['fromDate=2026-02-30', { fromDate: undefined }],
+    ['toDate=30/06/2026', { toDate: undefined }],
   ])('ignores the invalid %s', (query, expected) => {
     expect(parse(query)).toMatchObject(expected)
   })
@@ -87,5 +95,41 @@ describe('toSearchParams', () => {
     } as const
 
     expect(parseListParams(toSearchParams(params))).toEqual(params)
+  })
+})
+
+describe('date range', () => {
+  it('is written to the URL and read back', () => {
+    const search = toSearchParams({
+      ...DEFAULT_LIST_PARAMS,
+      fromDate: '2026-06-01',
+      toDate: '2026-06-30',
+    })
+
+    expect(search.toString()).toBe('fromDate=2026-06-01&toDate=2026-06-30')
+    expect(parseListParams(search)).toMatchObject({
+      fromDate: '2026-06-01',
+      toDate: '2026-06-30',
+    })
+  })
+
+  it('may have only one end', () => {
+    expect(parse('fromDate=2026-06-01')).toMatchObject({
+      fromDate: '2026-06-01',
+      toDate: undefined,
+    })
+  })
+
+  it.each([
+    ['ends before it starts', '2026-06-10', '2026-06-09', true],
+    ['is a single day', '2026-06-10', '2026-06-10', false],
+    ['runs forwards', '2026-06-01', '2026-06-30', false],
+    ['has no start', undefined, '2026-06-30', false],
+    ['has no end', '2026-06-01', undefined, false],
+    ['is not set', undefined, undefined, false],
+  ])('a range that %s: inverted = %s', (_case, fromDate, toDate, inverted) => {
+    expect(
+      isDateRangeInverted({ ...DEFAULT_LIST_PARAMS, fromDate, toDate }),
+    ).toBe(inverted)
   })
 })

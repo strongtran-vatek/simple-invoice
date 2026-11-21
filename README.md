@@ -56,7 +56,7 @@ Running the seed again resets this account's password and name to the values in 
 ## What it does
 
 - **Authentication.** A Login screen with client-side and server-side validation. A successful sign-in issues a JWT, which the browser stores and sends with every request. Every other screen and every other endpoint needs it; a visitor without one is sent to the Login screen and returned to the page they asked for after signing in.
-- **Invoice List.** The home screen. A paginated list showing invoice number, customer, invoice date, due date, total and status, with search by invoice number or customer name, a status filter, sorting by invoice date, due date or total, and a choice of page size. Paging, search, filtering and sorting are all done by the server. The list state lives in the URL, so a filtered view can be bookmarked or shared.
+- **Invoice List.** The home screen. A paginated list showing invoice number, customer, invoice date, due date, total and status, with search by invoice number or customer name, a status filter, an invoice date range, sorting by invoice date, due date or total, and a choice of page size. Paging, search, filtering and sorting are all done by the server. The list state lives in the URL, so a filtered view can be bookmarked or shared.
 - **Invoice Detail.** Invoice information, customer, line items and amounts (subtotal, tax, discount, total, paid and outstanding balance), with the status at the top.
 - **Create Invoice.** A form with the validation rules of the specification. The invoice is saved as a Draft, the backend calculates its totals, and a success message is shown on return to the list.
 
@@ -313,7 +313,6 @@ Where the specification is silent or contradicts itself, these are the choices m
 
 **Shortcomings**
 
-- The API can filter by invoice date range (`fromDate`, `toDate`), but the list screen has no control for it yet.
 - The create form shows no running total while it is being filled in. The totals appear once the invoice is saved.
 - The login rate limit is kept in the memory of one backend process and counted per client address. Behind a proxy that hides client addresses, all users would share one limit.
 - Search is a substring match with no supporting index. That is fine for thousands of invoices and would need a trigram index for millions.

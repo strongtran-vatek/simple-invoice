@@ -7,6 +7,7 @@ import {
   SORT_FIELDS,
   type SortField,
 } from '../api/invoices'
+import { isDateOnly } from './dates'
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50]
 
@@ -15,6 +16,20 @@ export const DEFAULT_LIST_PARAMS: InvoiceListParams = {
   pageSize: 10,
   sortBy: 'invoiceDate',
   ordering: 'DESC',
+}
+
+function dateOnly(value: string | null): string | undefined {
+  return value !== null && isDateOnly(value) ? value : undefined
+}
+
+/**
+ * True when the date range ends before it starts. The backend refuses such a
+ * range, so the list asks the user to correct it and sends nothing.
+ */
+export function isDateRangeInverted(params: InvoiceListParams): boolean {
+  return Boolean(
+    params.fromDate && params.toDate && params.toDate < params.fromDate,
+  )
 }
 
 function positiveInteger(value: string | null): number | undefined {
@@ -49,6 +64,8 @@ export function parseListParams(search: URLSearchParams): InvoiceListParams {
       ? (status as InvoiceStatus)
       : undefined,
     keyword: keyword || undefined,
+    fromDate: dateOnly(search.get('fromDate')),
+    toDate: dateOnly(search.get('toDate')),
   }
 }
 
@@ -58,6 +75,8 @@ export function toSearchParams(params: InvoiceListParams): URLSearchParams {
 
   if (params.keyword) search.set('keyword', params.keyword)
   if (params.status) search.set('status', params.status)
+  if (params.fromDate) search.set('fromDate', params.fromDate)
+  if (params.toDate) search.set('toDate', params.toDate)
   if (
     params.sortBy !== DEFAULT_LIST_PARAMS.sortBy ||
     params.ordering !== DEFAULT_LIST_PARAMS.ordering

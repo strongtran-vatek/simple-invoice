@@ -182,6 +182,118 @@ describe('InvoiceListPage', () => {
     })
   })
 
+  describe('date range filter', () => {
+    const fromField = () => screen.getByLabelText('Invoiced from')
+    const toField = () => screen.getByLabelText('Invoiced to')
+
+    it('shows only invoices dated within the range, both ends included', async () => {
+      const { user } = await openList()
+      await waitForNumbers(range(23, 14))
+
+      await user.type(fromField(), '2026-06-05')
+      await user.type(toField(), '2026-06-08')
+
+      await waitForNumbers(range(8, 5))
+      expect(lastRequest()).toMatchObject({
+        fromDate: '2026-06-05',
+        toDate: '2026-06-08',
+      })
+      expect(screen.getByText('4 invoices')).toBeInTheDocument()
+      expect(currentUrl()).toBe(
+        '/invoices?fromDate=2026-06-05&toDate=2026-06-08',
+      )
+    })
+
+    it('works with only one end', async () => {
+      const { user } = await openList()
+      await waitForNumbers(range(23, 14))
+
+      await user.type(fromField(), '2026-06-20')
+
+      await waitForNumbers(range(23, 20))
+      expect(lastRequest()).not.toHaveProperty('toDate')
+    })
+
+    it('returns to the first page', async () => {
+      const { user } = await openList('/invoices?page=2')
+      await waitForNumbers(range(13, 4))
+
+      await user.type(toField(), '2026-06-12')
+
+      await waitForNumbers(range(12, 3))
+      expect(lastRequest().page).toBe('1')
+    })
+
+    it('combines with search and status, and is restored from a link', async () => {
+      await openList(
+        '/invoices?status=Paid&fromDate=2026-06-01&toDate=2026-06-12',
+      )
+
+      // Every fourth invoice is Paid: 3, 7 and 11 fall inside the range.
+      await waitForNumbers(['INV-0011', 'INV-0007', 'INV-0003'])
+      expect(fromField()).toHaveValue('2026-06-01')
+      expect(toField()).toHaveValue('2026-06-12')
+    })
+
+    it('is removed when a date is cleared', async () => {
+      const { user } = await openList('/invoices?fromDate=2026-06-20')
+      await waitForNumbers(range(23, 20))
+
+      await user.clear(fromField())
+
+      await waitForNumbers(range(23, 14))
+      expect(currentUrl()).toBe('/invoices')
+    })
+
+    it('is cleared together with the other filters', async () => {
+      const { user } = await openList(
+        '/invoices?fromDate=2027-01-01&toDate=2027-01-31',
+      )
+
+      await user.click(
+        await screen.findByRole('button', { name: 'Clear filters' }),
+      )
+
+      await waitForNumbers(range(23, 14))
+      expect(fromField()).toHaveValue('')
+      expect(toField()).toHaveValue('')
+    })
+
+    it('limits each date picker by the other end', async () => {
+      await openList('/invoices?fromDate=2026-06-05&toDate=2026-06-08')
+      await waitForNumbers(range(8, 5))
+
+      expect(fromField()).toHaveAttribute('max', '2026-06-08')
+      expect(toField()).toHaveAttribute('min', '2026-06-05')
+    })
+
+    it('asks for a range that ends before it starts to be corrected, without calling the backend', async () => {
+      const { user } = await openList(
+        '/invoices?fromDate=2026-06-10&toDate=2026-06-01',
+      )
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'The date range ends before it starts',
+      )
+      expect(toField()).toBeInvalid()
+      expect(toField()).toHaveAccessibleDescription('Before the from date')
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(invoiceListRequests).toHaveLength(0)
+
+      await user.click(screen.getByRole('button', { name: 'Clear dates' }))
+
+      await waitForNumbers(range(23, 14))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('ignores a date in the link that is not a date', async () => {
+      await openList('/invoices?fromDate=last-week')
+
+      await waitForNumbers(range(23, 14))
+      expect(lastRequest()).not.toHaveProperty('fromDate')
+    })
+  })
+
   describe('sorting', () => {
     it.each([
       ['Invoice date', 'invoiceDate'],

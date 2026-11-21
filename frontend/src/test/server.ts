@@ -180,6 +180,8 @@ const unauthorized = (message: string) =>
 function listInvoices(query: URLSearchParams) {
   const keyword = query.get('keyword')?.toLowerCase()
   const status = query.get('status')
+  const fromDate = query.get('fromDate')
+  const toDate = query.get('toDate')
   const sortBy = (query.get('sortBy') ?? 'invoiceDate') as
     'invoiceDate' | 'dueDate' | 'totalAmount'
   const descending = (query.get('ordering') ?? 'DESC') === 'DESC'
@@ -192,7 +194,9 @@ function listInvoices(query: URLSearchParams) {
         (!keyword ||
           invoice.invoiceNumber.toLowerCase().includes(keyword) ||
           invoice.customer.fullname.toLowerCase().includes(keyword)) &&
-        (!status || invoice.status === status),
+        (!status || invoice.status === status) &&
+        (!fromDate || invoice.invoiceDate >= fromDate) &&
+        (!toDate || invoice.invoiceDate <= toDate),
     )
     .sort((a, b) => {
       const order = a[sortBy] < b[sortBy] ? -1 : a[sortBy] > b[sortBy] ? 1 : 0
@@ -239,6 +243,18 @@ export const server = setupServer(
     }
     const query = new URL(request.url).searchParams
     invoiceListRequests.push(query)
+    const fromDate = query.get('fromDate')
+    const toDate = query.get('toDate')
+    if (fromDate && toDate && toDate < fromDate) {
+      return HttpResponse.json(
+        {
+          statusCode: 400,
+          message: ['toDate must be on or after fromDate'],
+          error: 'Bad Request',
+        },
+        { status: 400 },
+      )
+    }
     return HttpResponse.json(listInvoices(query))
   }),
 

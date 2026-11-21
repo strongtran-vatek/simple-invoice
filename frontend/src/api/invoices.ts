@@ -76,6 +76,10 @@ export interface InvoiceListParams {
   ordering: SortOrder
   status?: InvoiceStatus
   keyword?: string
+  /** `YYYY-MM-DD`: only invoices dated on or after this day. */
+  fromDate?: string
+  /** `YYYY-MM-DD`: only invoices dated on or before this day. */
+  toDate?: string
 }
 
 export async function fetchInvoices(
