@@ -298,6 +298,7 @@ Health probes:
 CI workflow:
 
 - `.github/workflows/ci.yml` has three jobs: backend (lint, format check, build, unit and e2e tests), frontend (lint, format check, tests, build) and Docker Compose (start the stack from `.env.example`, wait for healthy, run the smoke test).
+- The Docker Compose job was rehearsed by hand on 2026-11-21: a fresh clone of the final slice 7 code, `.env` from the example with only the ports changed, `docker compose up --build --detach --wait` on an empty volume, then the smoke test. All three services reported healthy and the smoke test passed.
 - The smoke test script passes against the local stack. The workflow itself has not run on GitHub, because the repository has no remote yet; its YAML parses and every command in it was run locally.
 
 ## Status
