@@ -58,7 +58,7 @@ Running the seed again resets this account's password and name to the values in 
 - **Authentication.** A Login screen with client-side and server-side validation. A successful sign-in issues a JWT, which the browser stores and sends with every request. Every other screen and every other endpoint needs it; a visitor without one is sent to the Login screen and returned to the page they asked for after signing in.
 - **Invoice List.** The home screen. A paginated list showing invoice number, customer, invoice date, due date, total and status, with search by invoice number or customer name, a status filter, an invoice date range, sorting by invoice date, due date or total, and a choice of page size. Paging, search, filtering and sorting are all done by the server. The list state lives in the URL, so a filtered view can be bookmarked or shared.
 - **Invoice Detail.** Invoice information, customer, line items and amounts (subtotal, tax, discount, total, paid and outstanding balance), with the status at the top.
-- **Create Invoice.** A form with the validation rules of the specification. The invoice is saved as a Draft, the backend calculates its totals, and a success message is shown on return to the list.
+- **Create Invoice.** A form with the validation rules of the specification. A running estimate of the totals is shown while the form is filled in. The invoice is saved as a Draft, the backend calculates its totals, and a success message is shown on return to the list.
 
 The interface is responsive: the list becomes cards and the line items stack on a phone.
 
@@ -112,7 +112,7 @@ Browser ── static files ──▶ nginx (frontend container, port 8080)
 
 - MUI for components, React Router for routing, TanStack Query for server state, React Hook Form with Zod for forms.
 - One axios client attaches the token and, on a 401, clears the session and returns to the Login screen.
-- The frontend does no invoice arithmetic. It displays the amounts the backend sends.
+- Every amount shown for a saved invoice is the one the backend sent. The only arithmetic in the frontend is the estimate on the create form, which is labelled as such and never sent.
 
 **Business rules worth knowing**
 
@@ -313,7 +313,6 @@ Where the specification is silent or contradicts itself, these are the choices m
 
 **Shortcomings**
 
-- The create form shows no running total while it is being filled in. The totals appear once the invoice is saved.
 - The login rate limit is kept in the memory of one backend process and counted per client address. Behind a proxy that hides client addresses, all users would share one limit.
 - Search is a substring match with no supporting index. That is fine for thousands of invoices and would need a trigram index for millions.
 - Sorting by total compares the numbers and ignores currency: 100 USD sorts below 200 VND.

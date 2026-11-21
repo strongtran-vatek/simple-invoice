@@ -246,6 +246,129 @@ describe('InvoiceCreatePage', () => {
     })
   })
 
+  describe('the estimate', () => {
+    /** The label and amount pairs in the Estimate panel. */
+    function estimateRows(): Record<string, string> {
+      const panel = screen.getByRole('region', { name: 'Estimate' })
+      return Object.fromEntries(
+        within(panel)
+          .getAllByRole('term')
+          .map((term) => [
+            term.textContent,
+            term.nextElementSibling?.textContent ?? '',
+          ]),
+      )
+    }
+
+    it('shows no amounts until there is a rate', async () => {
+      await openForm()
+
+      expect(estimateRows()).toEqual({
+        Subtotal: '—',
+        Tax: '—',
+        Discount: '—',
+        'Estimated total': '—',
+      })
+      expect(
+        screen.getByText('Enter a quantity, rate and tax to see an estimate.'),
+      ).toBeInTheDocument()
+    })
+
+    it('updates as the numbers are typed, and says it is an estimate', async () => {
+      const { user } = await openForm()
+
+      await user.type(field(/Rate/), '19.99')
+      await retype(user, field(/Quantity/), '3')
+
+      // 3 × 19.99 = 59.97; 10% of that is 5.997, rounded half-up.
+      expect(estimateRows()).toEqual({
+        Subtotal: 'AU$59.97',
+        'Tax (10%)': 'AU$6.00',
+        Discount: 'AU$0.00',
+        'Estimated total': 'AU$65.97',
+      })
+      expect(
+        screen.getByText(
+          'An estimate. The final amounts are calculated when you save.',
+        ),
+      ).toBeInTheDocument()
+
+      await retype(user, field(/Tax/), '7.5')
+      await retype(user, field(/Discount/), '0.47')
+
+      expect(estimateRows()).toEqual({
+        Subtotal: 'AU$59.97',
+        'Tax (7.5%)': 'AU$4.50',
+        Discount: '-AU$0.47',
+        'Estimated total': 'AU$64.00',
+      })
+    })
+
+    it('uses the symbol of the chosen currency', async () => {
+      const { user } = await openForm()
+
+      await user.type(field(/Rate/), '1000')
+      await user.selectOptions(currencyField(), 'GBP')
+
+      expect(estimateRows()['Estimated total']).toBe('£1,100.00')
+    })
+
+    it('goes blank again while a number is malformed', async () => {
+      const { user } = await openForm()
+
+      await user.type(field(/Rate/), '100')
+      expect(estimateRows()['Estimated total']).toBe('AU$110.00')
+
+      await user.type(field(/Rate/), 'x')
+
+      expect(estimateRows()['Estimated total']).toBe('—')
+    })
+
+    it('warns when the discount is more than the subtotal plus tax', async () => {
+      const { user } = await openForm()
+
+      await user.type(field(/Rate/), '100')
+      await retype(user, field(/Discount/), '110.01')
+
+      expect(estimateRows()['Estimated total']).toBe('-AU$0.01')
+      expect(
+        screen.getByText('The discount is more than the subtotal plus tax.'),
+      ).toBeInTheDocument()
+    })
+
+    it('agrees with the total the backend then stores', async () => {
+      const { user } = await openForm()
+
+      await fillRequiredFields(user)
+      await retype(user, field(/Quantity/), '4')
+      const estimated = estimateRows()['Estimated total']
+      await user.click(submitButton())
+
+      const row = await screen.findByRole('row', { name: /INV-NEW/ })
+      expect(estimated).toBe('AU$662.20')
+      expect(within(row).getAllByRole('cell')[4]).toHaveTextContent(estimated)
+    })
+
+    it('is not sent to the backend', async () => {
+      const { user } = await openForm()
+
+      await fillRequiredFields(user)
+      await user.click(submitButton())
+
+      await waitFor(() => expect(invoiceCreateRequests).toHaveLength(1))
+      expect(Object.keys(invoiceCreateRequests[0]).sort()).toEqual([
+        'currency',
+        'customer',
+        'discount',
+        'dueDate',
+        'invoiceDate',
+        'invoiceNumber',
+        'items',
+        'tax',
+      ])
+    })
+  })
+
   describe('validation before sending', () => {
     it('names every required field left empty, and sends nothing', async () => {
       const { user } = await openForm()

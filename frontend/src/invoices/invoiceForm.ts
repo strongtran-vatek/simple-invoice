@@ -5,6 +5,19 @@ import { addDays, isDateOnly, todayLocal } from './dates'
 /** The currencies the backend accepts. It derives the symbol itself. */
 export const CURRENCIES = ['AUD', 'USD', 'GBP', 'EUR', 'SGD', 'VND'] as const
 
+/**
+ * Used only to preview amounts on the form. A saved invoice carries the
+ * symbol the backend chose.
+ */
+export const CURRENCY_SYMBOLS: Record<(typeof CURRENCIES)[number], string> = {
+  AUD: 'AU$',
+  USD: 'US$',
+  GBP: '£',
+  EUR: '€',
+  SGD: 'S$',
+  VND: '₫',
+}
+
 export const DEFAULT_TAX_RATE = 10
 /** A new invoice falls due this many days after its invoice date. */
 export const DEFAULT_PAYMENT_TERM_DAYS = 30

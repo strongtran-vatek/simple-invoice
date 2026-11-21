@@ -11,13 +11,21 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
-import { type FieldPath, useForm } from 'react-hook-form'
+import {
+  type Control,
+  type FieldPath,
+  useForm,
+  useWatch,
+} from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 import { getErrorMessages, getErrorStatus } from '../api/errors'
 import { createInvoice } from '../api/invoices'
 import { useNotify } from '../app/NotificationContext'
+import { estimateInvoiceAmounts } from '../invoices/estimate'
+import { formatMoney } from '../invoices/format'
 import {
   CURRENCIES,
+  CURRENCY_SYMBOLS,
   defaultInvoiceForm,
   type InvoiceFormValues,
   invoiceFormSchema,
@@ -58,6 +66,92 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 /** Makes a field span the full width of its section. */
 const FULL_WIDTH = { gridColumn: '1 / -1' }
 
+/** Shown in place of an amount that cannot be worked out yet. */
+const NO_AMOUNT = '—'
+
+/**
+ * A running preview of the invoice's amounts. It is its own component so that
+ * typing re-renders this panel, not the whole form.
+ */
+function EstimatedTotals({
+  control,
+}: {
+  control: Control<InvoiceFormValues, unknown, ValidInvoiceForm>
+}) {
+  const headingId = useId()
+  const [quantity, rate, tax, discount, currency] = useWatch({
+    control,
+    name: ['quantity', 'rate', 'tax', 'discount', 'currency'],
+  })
+  const estimate = estimateInvoiceAmounts({ quantity, rate, tax, discount })
+  const money = (amount: number | undefined) =>
+    amount === undefined
+      ? NO_AMOUNT
+      : formatMoney(amount, CURRENCY_SYMBOLS[currency] ?? '')
+  const discountTooLarge = estimate !== null && estimate.total < 0
+
+  const rows: [label: string, value: string, emphasised?: boolean][] = [
+    ['Subtotal', money(estimate?.subTotal)],
+    [estimate ? `Tax (${tax.trim()}%)` : 'Tax', money(estimate?.tax)],
+    [
+      'Discount',
+      // A discount reduces the total, so it is shown as a negative amount.
+      money(
+        estimate && estimate.discount !== 0
+          ? -estimate.discount
+          : estimate?.discount,
+      ),
+    ],
+    ['Estimated total', money(estimate?.total), true],
+  ]
+
+  return (
+    <Paper
+      component="section"
+      variant="outlined"
+      aria-labelledby={headingId}
+      sx={{ p: { xs: 2, sm: 3 } }}
+    >
+      <Typography id={headingId} variant="h6" component="h2" sx={{ mb: 1 }}>
+        Estimate
+      </Typography>
+      <Box component="dl" sx={{ m: 0, maxWidth: 360, ml: 'auto' }}>
+        {rows.map(([label, value, emphasised]) => (
+          <Box
+            key={label}
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 2,
+              py: 0.5,
+              fontWeight: emphasised ? 600 : 400,
+              borderTop: emphasised ? 1 : 0,
+              borderColor: 'divider',
+              color: emphasised && discountTooLarge ? 'error.main' : undefined,
+            }}
+          >
+            <Box component="dt">{label}</Box>
+            <Box component="dd" sx={{ m: 0, whiteSpace: 'nowrap' }}>
+              {value}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+      <Typography
+        variant="body2"
+        color={discountTooLarge ? 'error' : 'text.secondary'}
+        sx={{ mt: 1, textAlign: 'right' }}
+      >
+        {discountTooLarge
+          ? 'The discount is more than the subtotal plus tax.'
+          : estimate
+            ? 'An estimate. The final amounts are calculated when you save.'
+            : 'Enter a quantity, rate and tax to see an estimate.'}
+      </Typography>
+    </Paper>
+  )
+}
+
 /** The form for creating an invoice. The backend calculates its totals. */
 export function InvoiceCreatePage() {
   const navigate = useNavigate()
@@ -71,6 +165,7 @@ export function InvoiceCreatePage() {
     register,
     handleSubmit,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<InvoiceFormValues, unknown, ValidInvoiceForm>({
     resolver: zodResolver(invoiceFormSchema),
@@ -141,8 +236,7 @@ export function InvoiceCreatePage() {
         New invoice
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        The invoice is saved as a Draft. Its totals are calculated when you save
-        it.
+        The invoice is saved as a Draft.
       </Typography>
 
       <Box component="form" noValidate onSubmit={onSubmit}>
@@ -279,6 +373,8 @@ export function InvoiceCreatePage() {
               }
             />
           </Section>
+
+          <EstimatedTotals control={control} />
 
           <Stack
             direction={{ xs: 'column-reverse', sm: 'row' }}
