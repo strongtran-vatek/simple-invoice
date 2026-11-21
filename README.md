@@ -14,6 +14,7 @@ A small invoicing application: sign in, list invoices, view one, create one. Bui
 - [API](#api)
 - [Tests](#tests)
 - [Assumptions and design decisions](#assumptions-and-design-decisions)
+- [Beyond the requirements](#beyond-the-requirements)
 - [Known limitations](#known-limitations)
 
 ## Quick start
@@ -89,6 +90,7 @@ simple-invoice/
 │   │   └── test/           Fake backend and render helpers for tests
 │   └── Dockerfile
 ├── docs/                   Requirements and architecture decision records
+├── .github/                CI workflow and its smoke test
 ├── GLOSSARY.md             Domain vocabulary
 ├── docker-compose.yml
 └── .env.example
@@ -257,6 +259,14 @@ The workflow test the specification asks for, "create an invoice, then see it in
 
 Both projects also have `npm run lint` (oxlint), `npm run format:check` (Prettier) and `npm run build`.
 
+**Continuous integration.** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every push to `main` and on every pull request, as three jobs:
+
+- backend: lint, format check, build, unit tests, e2e tests;
+- frontend: lint, format check, tests, build;
+- Docker Compose: copies `.env.example` to `.env`, runs `docker compose up`, waits for every service to report healthy, then runs [.github/scripts/smoke-test.sh](.github/scripts/smoke-test.sh), which signs in as the seeded account, lists the invoices and fetches the frontend.
+
+The smoke test also works against a stack running on your machine: `./.github/scripts/smoke-test.sh`.
+
 ## Assumptions and design decisions
 
 Where the specification is silent or contradicts itself, these are the choices made. The full list, with the question each one answers, is in [docs/requirements.md](docs/requirements.md). The decisions that would be costly to reverse each have a short record in [docs/adr/](docs/adr/).
@@ -304,6 +314,16 @@ Where the specification is silent or contradicts itself, these are the choices m
 - TypeORM with explicit migrations, not schema synchronisation. ([ADR 0001](docs/adr/0001-typeorm-with-explicit-migrations.md))
 - `docker compose up` needs `.env` to exist and says so if it does not, instead of falling back to built-in secrets. ([ADR 0006](docs/adr/0006-env-file-required-before-compose-up.md))
 - Tests run on Vitest and linting on oxlint in both projects, which is what the current NestJS and Vite scaffolds generate.
+- `GET /health` and `GET /ready` are added to the specification's endpoints, so Compose can start the services in order.
+
+## Beyond the requirements
+
+- **Date range filter** on the Invoice List, by invoice date, kept in the URL with the rest of the list state.
+- **Running estimate** of subtotal, tax, discount and total on the create form. It is labelled an estimate and never sent; the backend calculates what is stored.
+- **Health probes and ordered start-up.** `GET /health` and `GET /ready`, with Compose healthchecks, so each service starts once the one it depends on is ready.
+- **CI workflow** with lint, tests, build and a Compose smoke test.
+- **Login rate limiting**, a case-insensitive unique invoice number enforced by the database, and database check constraints that restate the invoice arithmetic.
+- **Shareable list state**: search, filter, sort and page live in the URL, and "Back to invoices" restores them.
 
 ## Known limitations
 
@@ -325,5 +345,4 @@ Where the specification is silent or contradicts itself, these are the choices m
 - The frontend ships as a single JavaScript bundle of about 700 kB; it is not split by route.
 - `VITE_API_URL` is fixed when the frontend is built. Pointing the Docker frontend at another API means rebuilding it.
 - The Compose setup is for local use: plain HTTP, and the seed runs on every backend start.
-- There is no CI workflow in the repository yet.
 - The frontend tests use a fake backend. No test drives a real browser against the running stack; that path was checked by hand.

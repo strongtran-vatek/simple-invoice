@@ -184,7 +184,7 @@ Vertical slices, each ending with passing tests and a commit:
 
 ## Amendments found during slice 1
 
-Scaffolding with the current framework releases showed that two approved tooling choices no longer match what the frameworks ship. Both were changed to the framework default and are awaiting confirmation:
+Scaffolding with the current framework releases showed that two approved tooling choices no longer match what the frameworks ship. Both were changed to the framework default. They were raised at the end of slice 1 and again at the end of slice 6, drew no objection, and are treated as accepted:
 
 | Approved | Now | Why |
 | --- | --- | --- |
@@ -254,7 +254,7 @@ None of these change an approved decision:
 - The response is read back from the database after the insert, so it is exactly what `GET /invoices/:id` returns for the new invoice.
 - A new invoice whose due date is already past is stored as a Draft and shown as Overdue, like any other. Neither date is restricted to the past or the future.
 - On the form, Tax is pre-filled with 10 and cannot be left empty; the user types 0 for no tax. An empty Discount means 0. The API still defaults both when they are omitted.
-- The form does no arithmetic. A discount that is too large is therefore reported by the backend, in the alert above the form.
+- The form does no arithmetic. A discount that is too large is therefore reported by the backend, in the alert above the form. (Superseded in slice 7: the form now shows an estimate, and warns about such a discount before it is sent.)
 - Amounts are typed into text boxes with a numeric keypad on phones, not number inputs, so "1.999" or "12abc" is refused rather than rounded or truncated by the browser.
 - After saving, the list is opened in its default view, where an invoice dated today is the first row. An invoice dated in the past may be on a later page, so the success message carries a "View" link to it.
 - Cancel and "Back to invoices" return to the list with the search, filter, sort and page it had.
@@ -269,6 +269,37 @@ None of these change an approved decision:
   - The clone's `.env` used other ports than `.env.example`, because 3000, 5433 and 8080 were already in use on the development machine. The default ports themselves were therefore not exercised in that run.
 - The README lists the two Value Add features that are not built yet (date-range filter in the list, live totals on the form), and the missing health endpoint and CI workflow, under known limitations. Each entry is removed when slice 7 delivers it.
 
+## Notes from slice 7 (Value Add)
+
+All four items of R2-Q24 are built, in the agreed order.
+
+Date-range filter:
+
+- Two date fields, "Invoiced from" and "Invoiced to", filter by invoice date with both ends included. Either may be used alone.
+- The range is part of the list state in the URL. A value in the URL that is not a real date is ignored.
+- A range that ends before it starts is flagged on the "to" field and is not sent, since the backend would answer 400. The list area asks for it to be corrected and offers "Clear dates".
+- Each date picker is limited by the other end, so the mistake can only be made by typing.
+
+Estimate on the create form:
+
+- The panel shows subtotal, tax, discount and estimated total as the numbers are typed, and dashes while a number is missing or malformed.
+- It follows the backend calculator's rules and is tested with the same cases, in whole cents, so the two agree to the cent. It is never sent: the request still carries no totals.
+- It turns red and says so when the discount is more than the subtotal plus tax. The backend still makes the decision.
+- This is the one place the frontend does arithmetic. Every amount shown for a saved invoice is still the backend's.
+
+Health probes:
+
+- `GET /health` is liveness: it answers 200 without touching the database, because restarting the API does not repair a database. `GET /ready` is readiness: it pings the database and answers 503 when that fails.
+- Both are public and are documented in Swagger under their own tag. They are additions to the specification's endpoint list.
+- Built on `@nestjs/terminus`, NestJS's own package for this. Its failure format is re-stated in the API's one error shape, for example `{ "statusCode": 503, "message": "Not ready: database is down", "error": "Service Unavailable" }`.
+- Compose marks the backend healthy on `/ready` and starts the frontend only then. The start order is database, backend, frontend.
+- Checked in Docker by stopping the database: `/ready` answered 503 and `/health` 200, and `/ready` recovered within seconds of the database returning.
+
+CI workflow:
+
+- `.github/workflows/ci.yml` has three jobs: backend (lint, format check, build, unit and e2e tests), frontend (lint, format check, tests, build) and Docker Compose (start the stack from `.env.example`, wait for healthy, run the smoke test).
+- The smoke test script passes against the local stack. The workflow itself has not run on GitHub, because the repository has no remote yet; its YAML parses and every command in it was run locally.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end), 3 (invoice list with seed data), 4 (invoice detail), 5 (create invoice) and 6 (documentation and clean-clone run) are built. All four core features are in place; the Value Add items remain.
+All three grilling rounds are answered and recorded. All seven slices are built: scaffold, authentication, invoice list, invoice detail, create invoice, documentation with a clean-clone run, and the four Value Add items. Nothing approved remains unbuilt.

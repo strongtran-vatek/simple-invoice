@@ -66,6 +66,10 @@ An absolute amount in the invoice currency taken off the invoice. Never a percen
 Subtotal plus tax amount minus discount. It is never negative.
 _Avoid_: Gross total, grand total
 
+**Estimate**:
+A preview of an invoice's amounts shown while it is being entered. It is never stored; the **Total Amount** of a saved invoice is always calculated afresh.
+_Avoid_: Quote, draft total
+
 **Total Paid**:
 The amount the customer has paid so far.
 
