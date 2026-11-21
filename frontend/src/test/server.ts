@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import type { InvoiceStatus, InvoiceSummary } from '../api/invoices'
 
 /** Matches VITE_API_URL in vite.config.ts. */
 export const API_URL = 'http://api.test'
@@ -12,15 +13,72 @@ export const TEST_USER = {
 export const TEST_PASSWORD = 'correct-horse-battery'
 export const TEST_TOKEN = 'header.payload.signature'
 
+const CUSTOMERS = ['Alice Johnson', 'Bob Stone', 'Carol White']
+const STATUSES: InvoiceStatus[] = ['Draft', 'Pending', 'Paid', 'Overdue']
+
+/**
+ * 23 invoices, INV-0001 to INV-0023. Invoice n is dated the n-th of June 2026,
+ * falls due the n-th of July and totals 100 × n, so the expected order under
+ * any sort is easy to read off.
+ */
+export const TEST_INVOICES: InvoiceSummary[] = Array.from(
+  { length: 23 },
+  (_, index) => {
+    const n = index + 1
+    const day = String(n).padStart(2, '0')
+    return {
+      invoiceId: `00000000-0000-4000-8000-0000000000${day}`,
+      invoiceNumber: `INV-00${day}`,
+      invoiceDate: `2026-06-${day}`,
+      dueDate: `2026-07-${day}`,
+      currency: 'AUD',
+      currencySymbol: 'AU$',
+      totalAmount: n * 100,
+      status: STATUSES[index % STATUSES.length],
+      customer: { fullname: CUSTOMERS[index % CUSTOMERS.length] },
+    }
+  },
+)
+
+/** The query string of every `GET /invoices` the app has made in this test. */
+export const invoiceListRequests: URLSearchParams[] = []
+
 const unauthorized = (message: string) =>
   HttpResponse.json(
     { statusCode: 401, message, error: 'Unauthorized' },
     { status: 401 },
   )
 
+/** Applies the same search, filter, sort and paging rules as the real backend. */
+function listInvoices(query: URLSearchParams) {
+  const keyword = query.get('keyword')?.toLowerCase()
+  const status = query.get('status')
+  const sortBy = (query.get('sortBy') ?? 'invoiceDate') as
+    'invoiceDate' | 'dueDate' | 'totalAmount'
+  const descending = (query.get('ordering') ?? 'DESC') === 'DESC'
+  const page = Number(query.get('page') ?? 1)
+  const pageSize = Number(query.get('pageSize') ?? 10)
+
+  const matching = TEST_INVOICES.filter(
+    (invoice) =>
+      (!keyword ||
+        invoice.invoiceNumber.toLowerCase().includes(keyword) ||
+        invoice.customer.fullname.toLowerCase().includes(keyword)) &&
+      (!status || invoice.status === status),
+  ).sort((a, b) => {
+    const order = a[sortBy] < b[sortBy] ? -1 : a[sortBy] > b[sortBy] ? 1 : 0
+    return descending ? -order : order
+  })
+
+  return {
+    data: matching.slice((page - 1) * pageSize, page * pageSize),
+    paging: { page, pageSize, total: matching.length },
+  }
+}
+
 /**
- * A fake backend that behaves like the real one for authentication: one known
- * user, one valid token. Tests override single handlers with `server.use(...)`.
+ * A fake backend that behaves like the real one: one known user, one valid
+ * token, a fixed set of invoices. Tests override single handlers with `server.use(...)`.
  */
 export const server = setupServer(
   http.post(`${API_URL}/auth/login`, async ({ request }) => {
@@ -44,5 +102,14 @@ export const server = setupServer(
       return unauthorized('Invalid or expired token')
     }
     return HttpResponse.json(TEST_USER)
+  }),
+
+  http.get(`${API_URL}/invoices`, ({ request }) => {
+    if (request.headers.get('Authorization') !== `Bearer ${TEST_TOKEN}`) {
+      return unauthorized('Authentication required')
+    }
+    const query = new URL(request.url).searchParams
+    invoiceListRequests.push(query)
+    return HttpResponse.json(listInvoices(query))
   }),
 )

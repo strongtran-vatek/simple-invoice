@@ -3,11 +3,13 @@ import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
+import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
 import { inject } from 'vitest';
 import { configureApp } from '../../src/app.setup.js';
 import { BCRYPT_ROUNDS } from '../../src/auth/password.service.js';
+import { Clock } from '../../src/common/clock.js';
 import { seedDefaultUser } from '../../src/database/seed/seed-default-user.js';
 import type { User } from '../../src/users/user.entity.js';
 
@@ -26,11 +28,15 @@ export interface TestApp {
   databaseName: string;
   /** Creates (or resets) the test user and returns it. */
   createUser(): Promise<User>;
+  /** Creates the test user, signs in and returns an `Authorization` header value. */
+  signIn(): Promise<string>;
 }
 
 export interface TestAppOptions {
   /** Keep the real login rate limit. Off by default so tests can log in freely. */
   throttling?: boolean;
+  /** Pins "today" (`YYYY-MM-DD`) so Overdue derivation is deterministic. */
+  today?: string;
 }
 
 /**
@@ -69,6 +75,10 @@ export async function createTestApp(
   if (!options.throttling) {
     builder.overrideGuard(ThrottlerGuard).useValue({ canActivate: () => true });
   }
+  if (options.today) {
+    const today = options.today;
+    builder.overrideProvider(Clock).useValue({ today: () => today });
+  }
   const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<INestApplication<App>>();
@@ -76,19 +86,29 @@ export async function createTestApp(
   await app.init();
 
   const dataSource = app.get(DataSource);
+  const createUser = () =>
+    seedDefaultUser(
+      dataSource,
+      {
+        SEED_USER_EMAIL: TEST_USER.email,
+        SEED_USER_PASSWORD: TEST_USER.password,
+        SEED_USER_FULLNAME: TEST_USER.fullname,
+      },
+      TEST_BCRYPT_ROUNDS,
+    );
+
   return {
     app,
     dataSource,
     databaseName,
-    createUser: () =>
-      seedDefaultUser(
-        dataSource,
-        {
-          SEED_USER_EMAIL: TEST_USER.email,
-          SEED_USER_PASSWORD: TEST_USER.password,
-          SEED_USER_FULLNAME: TEST_USER.fullname,
-        },
-        TEST_BCRYPT_ROUNDS,
-      ),
+    createUser,
+    async signIn() {
+      await createUser();
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: TEST_USER.email, password: TEST_USER.password })
+        .expect(200);
+      return `Bearer ${response.body.accessToken}`;
+    },
   };
 }

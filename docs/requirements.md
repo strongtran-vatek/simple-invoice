@@ -215,6 +215,20 @@ None of these change an approved decision:
 - The seed script runs when the backend container starts. It creates the default account, or resets its password and name to the `SEED_USER_*` values, so the documented credentials always work.
 - The frontend's HTTP client uses the browser's `fetch` through axios.
 
+## Notes from slice 3 (invoice list)
+
+None of these change an approved decision:
+
+- A list row is a strict subset of the invoice detail, with the same names and nesting: `invoiceId`, `invoiceNumber`, `invoiceDate`, `dueDate`, `currency`, `currencySymbol`, `totalAmount`, `status` and `customer.fullname`.
+- A blank query parameter (`?status=`) is treated as absent. An unknown one (`?limit=5`) is rejected with 400, the same as an unknown body property.
+- `ordering` is accepted in either letter case. A `toDate` earlier than `fromDate` is rejected with 400.
+- A page beyond the last returns 200 with an empty `data` array and the real `total`.
+- "Today" is read once per request from the injectable clock and passed to the query as a parameter, so the Overdue filter and the status shown on each row always agree.
+- In the list UI, clicking a column that is not the current sort starts ascending; clicking the current one reverses it.
+- Seed data is generated from each invoice's index, not from a random number generator. R2-Q21 asked for "a fixed random seed"; the point was that every run produces the same data, which this gives with less machinery.
+- Unpaid seed invoices are dated within the last 50 days and Paid ones within the last 150, so on any day roughly a quarter of the sample is Overdue and the rest is spread over Draft, Pending and Paid.
+- The Appendix A record names a `createdBy` user that does not exist; the seed records the default account as its creator instead.
+
 ## Status
 
-All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration) and 2 (authentication end to end) are built.
+All three grilling rounds are answered and recorded. Slices 1 (scaffold, Compose, database connection, first migration), 2 (authentication end to end) and 3 (invoice list with seed data) are built.

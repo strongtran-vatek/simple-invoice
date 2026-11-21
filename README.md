@@ -2,7 +2,7 @@
 
 A small invoicing application: sign in, list invoices, view one, create one. Built for the 101 Digital Full Stack assessment.
 
-> Work in progress. The project is being built in vertical slices; so far sign-in, route protection, the database schema and the Docker setup are in place. This README is completed in a later slice.
+> Work in progress. The project is being built in vertical slices; so far sign-in, route protection and the invoice list (search, status filter, sorting, pagination) are in place. Invoice detail and creation follow. This README is completed in a later slice.
 
 ## Structure
 
@@ -61,7 +61,15 @@ The frontend dev server runs on http://localhost:5173.
 cd backend && npm run seed
 ```
 
-Applies any pending migrations, then creates or resets the default account. It is safe to run repeatedly.
+Applies any pending migrations, creates or resets the default account, and adds 41 sample invoices: the record from Appendix A of the specification plus 40 generated ones. It is safe to run repeatedly: if any invoices already exist it leaves them untouched.
+
+```bash
+cd backend && npm run seed -- --reset
+```
+
+Deletes every invoice and adds the samples again. With Docker, run `docker compose exec backend node dist/database/seed/seed.js --reset`.
+
+The generated invoices are the same on every run, with dates counted back from the day the seed runs, so there are always Draft, Pending, Paid and Overdue invoices to look at. Overdue is never stored; it appears because some unpaid invoices are past their due date.
 
 ## Tests
 

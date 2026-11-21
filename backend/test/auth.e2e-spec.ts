@@ -179,7 +179,9 @@ describe('Authentication (e2e)', () => {
     it('describes both endpoints and marks /auth/me as needing a bearer token', async () => {
       const { body } = await http().get('/api/docs-json').expect(200);
 
-      expect(Object.keys(body.paths)).toEqual(['/auth/login', '/auth/me']);
+      expect(Object.keys(body.paths)).toEqual(
+        expect.arrayContaining(['/auth/login', '/auth/me']),
+      );
       expect(body.paths['/auth/me'].get.security).toEqual([{ bearer: [] }]);
       expect(
         Object.keys(body.paths['/auth/login'].post.responses).sort(),
