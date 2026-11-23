@@ -166,6 +166,8 @@ cd frontend && npm ci && npm run dev
 
 Both projects read the `.env` at the repository root. The backend applies pending migrations whenever it starts.
 
+If port 5173 is taken, Vite starts on the next free port and prints it. The API only accepts browsers from the origins in `FRONTEND_ORIGIN`, so add the new one to it in `.env` (for example `http://localhost:5174`) and restart the backend. Otherwise sign-in fails with "Cannot reach the server".
+
 ## Seed
 
 ```bash
@@ -265,7 +267,7 @@ Both projects also have `npm run lint` (oxlint), `npm run format:check` (Prettie
 - frontend: lint, format check, tests, build;
 - Docker Compose: copies `.env.example` to `.env`, runs `docker compose up`, waits for every service to report healthy, then runs [.github/scripts/smoke-test.sh](.github/scripts/smoke-test.sh), which signs in as the seeded account, lists the invoices and fetches the frontend.
 
-The smoke test also works against a stack running on your machine: `./.github/scripts/smoke-test.sh`.
+The smoke test also works against a stack running on your machine: `./.github/scripts/smoke-test.sh`. It needs bash, curl and Node on the host.
 
 ## Assumptions and design decisions
 
